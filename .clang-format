@@ -1,0 +1,55 @@
+# .clang-format
+# clang-format 22+
+# Linux-kernel-like formatting with project overrides.
+
+BasedOnStyle: GNU
+Language: Cpp
+
+# --- Layout ---
+ColumnLimit: 100
+
+# --- Indentation ---
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+ContinuationIndentWidth: 8
+
+# --- Braces / blocks ---
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseExpressionOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: None
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Allman
+InsertBraces: true
+BreakAfterReturnType: Automatic
+
+# --- Spacing ---
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# --- switch/goto/preprocessor ---
+IndentCaseLabels: false
+IndentGotoLabels: false
+IndentPPDirectives: None
+
+# --- Alignment ---
+AlignAfterOpenBracket: true
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments: None
+AlignConsecutiveBitFields: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: Consecutive
+AlignOperands: Align
+AlignTrailingComments: false
+
+# --- Includes ---
+SortIncludes: false
+
+# --- Comments ---
+ReflowComments: true
