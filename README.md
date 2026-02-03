@@ -23,9 +23,9 @@ For the pins setup as GPIO output, the definitions are as follows:
 | Pin | Peripheral |
 |-----|------------|
 | PA4 | SPI2 CS |
-| PA5 | Onboard LED (Nucleo) |
+| PA5 | SPI4 CS Mag, Onboard LED (Nucleo) |
 | PA6 | SPI3 CS |
-| PA7 | SPI4 CS |
+| PA7 | SPI4 CS Gyro/Accel|
 | PC13 | Onboard LED (Blackpill) |
 
 ## Getting Started
@@ -67,10 +67,18 @@ lib/
     └── motor456.h
 ```
 
+### Flashing Setup
+Flashing may be done over ST-Link or via DFU. DFU is the default. Make sure to set your upload protocol in `platformio.ini`.
+
+**If developing on the Nucleo**, either upload protocol may be used. ST-Link is recommended.
+
+**If developing on the Blackpill**, you must first set the blackpill to DFU mode by pressing the reset button while BOOT0 is held down. Then you can start the flash sequence in PlatformIO.
+
+
 ### Debugger Setup
 Debugging is via SWD.
 
-**If developing on the Nucleo**, the onboard ST-LINK may be used (ensure the jumpers across header CN2 are in place) to flash and debug the MCU.
+**If developing on the Nucleo**, the onboard ST-LINK may be used (ensure the jumpers across header CN2 are in place) to debug the MCU.
 
 **If developing on the Blackpill**, you must connect an external debugger to the 4-pin SWD header at the end of the board. If you are using another Nucleo board as an external debugger, be sure to remove the jumpers across header CN2. Store them at CN11/12.
 
@@ -81,7 +89,7 @@ For backwards compatibility with the Nucleo boards, the **USART2 peripheral** is
 
 ### Clock Configuration
 
-The system is configured to use the external oscillators (HSE/LSE) with the following configuration:
-- **System Clock**: 25 MHz direct from HSE, no PLL
-- **RTC Clock**: 32.768 KHz direct from LSE
-- **AHB/APB1/APB2/etc.**: All clocks @ 25 MHz, no division
+The system is configured to use the internal oscillators (HSI/LSI) with the following configuration:
+- **System Clock**: 16 MHz direct from HSI, no PLL
+- **RTC Clock**: 32 KHz direct from LSI
+- **AHB/APB1/APB2/etc.**: All clocks @ 16 MHz, no division
