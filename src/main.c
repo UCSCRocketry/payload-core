@@ -475,10 +475,10 @@ static void MX_GPIO_Init(void)
 	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOA, SPI4_CS_MAG_Pin | SPI2_CS_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, SPI4_CS_MAG_Pin | SPI2_CS_Pin, GPIO_PIN_SET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOB, SPI3_CS_Pin | SPI4_CS_IMU_Pin | SPI1_CS_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, SPI3_CS_Pin | SPI4_CS_IMU_Pin | SPI1_CS_Pin, GPIO_PIN_SET);
 
 	/*Configure GPIO pin : GPIO_LED_Pin */
 	GPIO_InitStruct.Pin = GPIO_LED_Pin;
