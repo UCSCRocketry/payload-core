@@ -6,26 +6,32 @@ Firmware for the rocket payload flight controller, responsible for fin actuation
 
 The payload core can be run on the STM32F411Xe family of microcontrollers, though the configuration is designed for the smaller STM32F411CE variant, found on the blackpill.
 
-The system interfaces are assigned to the peripheral components as follows:
+The pin assignments, and system interface assignments are as follows:
 
-| Component | Model | Interface | Description |
-|-----------|-------|-----------|-------------|
-| Fin Servos 1/2 | FS5106B-FB | PWM (TIM1_CH1/2) | Active fin control |
-| Altimeter | BMP388 | SPI3 | Barometric pressure/altitude sensing |
-| IMU | LSM9DS1 | SPI4 | 9-DOF inertial measurement |
-| SD Card | - | SPI2 | Flight data logging |
+| Component | Model | Interface | Description | Pins |
+|-----------|-------|-----------|-------------|------|
+| Fin Servos 1/2 | FS5106B-FB | PWM (TIM1_CH1/2) | Active fin control | CH1(PA8), CH2(PA9)
+| - | - | SPI1 | Reserved interface for future use | SCK(PA5), MISO(PA6), MOSI(PA7)
+| SD Card | - | SPI2 | Flight data logging | SCK(PB10), MISO(PB14), MOSI(PB15)
+| Altimeter | BMP388 | SPI3 | Barometric pressure/altitude sensing | SCK(PB12), MISO(PB4), MOSI(PB5)
+| IMU | LSM9DS1 | SPI4 | 9-DOF inertial measurement | SCK(PB13), MISO(PA11), MOSI(PA1)
+| - | - | UART2 | Serial output | TX(PA2), RX(PA3)
+| - | - | RCC | Reserved, currently unenabled pins for LSE/HSE | OSC32_IN(PC14), OSC32_OUT(PC15), OSC_IN(PH0), OSC_OUT(PH1)
+| - | - | SWD | Serial Wire Debug port | SWCLK(PA14), SWDIO(PA13)
+
 
 The pin configuration is set up as follows:
 
 <img src="media/cubemx_pin_config.png" alt="STM32CubeMX Pin Configuration" width="400">
 
-For the pins setup as GPIO output, the definitions are as follows:
+Additionally, for the pins setup as GPIO output, the definitions are as follows:
 | Pin | Peripheral |
 |-----|------------|
+| PB2 | SPI1 CS |
 | PA4 | SPI2 CS |
-| PA5 | SPI4 CS Mag, Onboard LED (Nucleo) |
-| PA6 | SPI3 CS |
-| PA7 | SPI4 CS Gyro/Accel|
+| PB0 | SPI3 CS |
+| PB1 | SPI4 CS IMU |
+| PA0 | SPI4 CS Mag |
 | PC13 | Onboard LED (Blackpill) |
 
 ## Getting Started
