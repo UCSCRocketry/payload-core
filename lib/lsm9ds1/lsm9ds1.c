@@ -1109,7 +1109,7 @@ int lsm9ds1_init(const struct lsm9ds1_device *dev)
 
 	if (chip_id != LSM9DS1_IMU_ID)
 	{
-		LOG_ERR("LSM9DS1 Invalid ID : got %x", chip_id);
+		LOG_ERR("LSM9DS1 Invalid ID : got 0x%x", chip_id);
 		return -EIO;
 	}
 	LOG_DBG("LSM9DS1 chip_id : %x", chip_id);
