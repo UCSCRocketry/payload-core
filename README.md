@@ -27,8 +27,8 @@ The pin configuration is set up as follows:
 Additionally, for the pins setup as GPIO output, the definitions are as follows:
 | Pin | Peripheral |
 |-----|------------|
-| PB2 | SPI1 CS |
-| PA4 | SPI2 CS |
+| PB2 | SPI2 CS |
+| PA4 | SPI1 CS |
 | PB0 | SPI3 CS |
 | PB1 | SPI4 CS IMU |
 | PA0 | SPI4 CS Mag |
@@ -96,6 +96,6 @@ For backwards compatibility with the Nucleo boards, the **USART2 peripheral** is
 ### Clock Configuration
 
 The system is configured to use the internal oscillators (HSI/LSI) with the following configuration:
-- **System Clock**: 16 MHz direct from HSI, no PLL
+- **System Clock**: 50 MHz from PLL
 - **RTC Clock**: 32 KHz direct from LSI
-- **AHB/APB1/APB2/etc.**: All clocks @ 16 MHz, no division
+- **AHB/APB1/APB2/etc.**: All clocks @ 50 MHz, no division
