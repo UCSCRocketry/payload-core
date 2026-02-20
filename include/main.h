@@ -64,14 +64,14 @@ extern "C"
 #define GPIO_LED_GPIO_Port    GPIOC
 #define SPI4_CS_MAG_Pin       GPIO_PIN_0
 #define SPI4_CS_MAG_GPIO_Port GPIOA
-#define SPI2_CS_Pin           GPIO_PIN_4
-#define SPI2_CS_GPIO_Port     GPIOA
+#define SPI1_CS_Pin           GPIO_PIN_4
+#define SPI1_CS_GPIO_Port     GPIOA
 #define SPI3_CS_Pin           GPIO_PIN_0
 #define SPI3_CS_GPIO_Port     GPIOB
 #define SPI4_CS_IMU_Pin       GPIO_PIN_1
 #define SPI4_CS_IMU_GPIO_Port GPIOB
-#define SPI1_CS_Pin           GPIO_PIN_2
-#define SPI1_CS_GPIO_Port     GPIOB
+#define SPI2_CS_Pin           GPIO_PIN_2
+#define SPI2_CS_GPIO_Port     GPIOB
 
 	/* USER CODE BEGIN Private defines */
 
