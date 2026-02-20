@@ -76,9 +76,9 @@ lib/
 ### Flashing Setup
 Flashing may be done over ST-Link or via DFU. DFU is the default. Make sure to set your upload protocol in `platformio.ini`.
 
-**If developing on the Nucleo**, either upload protocol may be used. ST-Link is recommended.
+**If developing on the Nucleo or using the Nucleo as an ST-Link probe**: Either upload protocol may be used. ST-Link is recommended.
 
-**If developing on the Blackpill**, you must first set the blackpill to DFU mode by pressing the reset button while BOOT0 is held down. Then you can start the flash sequence in PlatformIO.
+**If developing on the Blackpill**: If PA11 (LSM9DS1/SPI4 MISO) is connected, you must disconnect it first. Then set the blackpill to DFU mode by pressing the reset button while BOOT0 is held down. Then you can start the flash sequence in PlatformIO. After its done flashing, reconnect PA11 if applicable. If PA11 had to be disconnected, SPI errors may show up. In that case, power cycle the **entire** system.
 
 
 ### Debugger Setup
