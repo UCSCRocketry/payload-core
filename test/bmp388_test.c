@@ -86,7 +86,7 @@ int main(void)
 			LOG_ERR("BMP388 fetch sample fail, ret = %d", ret);
 			Error_Handler();
 		}
-		(void) bmp388_channel_get(&bmp388_dev, SENSOR_CHAN_DIE_TEMP, &temp_val);
+		(void) bmp388_channel_get(&bmp388_dev, SENSOR_CHAN_AMBIENT_TEMP, &temp_val);
 		(void) bmp388_channel_get(&bmp388_dev, SENSOR_CHAN_PRESS, &press_val);
 
 		LOG_INF("Received Temperature Value: %f", sensor_value_to_float(&temp_val));
