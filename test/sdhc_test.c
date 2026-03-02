@@ -57,305 +57,218 @@ int main(void)
 	MX_CRC_Init();
 	log_init(&huart2);
 
-	if (sdhc_init_card(&hspi2) != HAL_OK)
-	{
-		LOG_ERR("Card init fail");
-		Error_Handler();
-	}
-	LOG_INF("Card init success");
-
-	if (sdhc_spi_wait_unbusy(&hspi2, 100, 100))
-	{
-		LOG_ERR("Card timeout");
-		Error_Handler();
-	}
-	LOG_INF("Card is free/not busy");
-
+	int ret;
 	static struct sdhc_spi_config test_config = {
 		.hspi = &hspi2,
 	};
-	static struct sdhc_spi_data test_data = { 0 };
+	static struct sdhc_spi_data test_spi_data = { 0 };
 	static struct sdhc_spi_device test_dev = {
 		.config = &test_config,
-		.data = &test_data,
+		.data = &test_spi_data,
 	};
-	static struct sdhc_command test_cmd = { 0 };
 
-	struct sdhc_data test_sdhc_data = { 0 };
-	uint8_t data[512] = { 0 };
-	test_sdhc_data.block_addr = 0xDE; /*!< Block to start read from */
-	test_sdhc_data.block_size = 512; /*!< Block size */
-	test_sdhc_data.blocks = 1; /*!< Number of blocks */
-	test_sdhc_data.bytes_xfered = 0; /*!< populated with number of bytes sent by SDHC */
-	test_sdhc_data.data = data; /*!< Data to transfer or receive */
-	test_sdhc_data.timeout_ms = 500; /*!< data timeout in milliseconds */
+	static uint8_t buf[512] = { 0 };
+	struct sdhc_data test_data = { 0 };
+	test_data.block_addr = 0xDE; /*!< Block to start read from */
+	test_data.block_size = 512; /*!< Block size */
+	test_data.blocks = 1; /*!< Number of blocks */
+	test_data.bytes_xfered = 0; /*!< populated with number of bytes sent by SDHC */
+	test_data.data = buf; /*!< Data to transfer or receive */
+	test_data.timeout_ms = 500; /*!< data timeout in milliseconds */
 
-	// Setup test command as CMD0 (GO_IDLE_STATE), R1 response expected
-	test_cmd.opcode = SD_GO_IDLE_STATE;
-	test_cmd.arg = 0;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R1; // R1
+	sdhc_init(&test_dev);
 
-	int data_present = 0;
-	int ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD0 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD0 failed with return value %d", ret);
-		Error_Handler();
-	}
+	// ====================
+	//  SINGLE-BLOCK TESTS
+	// ====================
 
-	// Turn CRC MODE on
-	test_cmd.opcode = SD_SPI_CRC_ON_OFF;
-	test_cmd.arg = 1;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R1;
-
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD59 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD59 failed with return value %d", ret);
-		Error_Handler();
-	}
-
-	// Send CMD8 to check voltage information
-	test_cmd.opcode = SD_SEND_IF_COND;
-	test_cmd.arg = (0xDE) | (1U << 8);
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R7;
-
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD8 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD8 failed with return value %d", ret);
-		Error_Handler();
-	}
-
-	for (size_t i = 0; i < 4; i++)
-	{
-		LOG_INF("CMD8 sent: response[%u]=0x%02x", i, test_cmd.response[i]);
-	}
-	if (test_cmd.response[1] != 0x1DE)
-	{
-		LOG_ERR("CMD8 fail");
-		Error_Handler();
-	}
-
-	// Send READ_OCR (CMD58) command
-	test_cmd.opcode = SD_SPI_READ_OCR;
-	test_cmd.arg = 0;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R3;
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD58 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD58 failed with return value %d", ret);
-		Error_Handler();
-	}
-
-	// Keep sending ACMD41 until slave is not busy anymore
-	do
-	{
-		// SEND CMD55 (APP_CMD) to signify next command is application command
-		test_cmd.opcode = SD_APP_CMD;
-		test_cmd.arg = 0;
-		test_cmd.response_type = SD_SPI_RSP_TYPE_R1;
-		ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-		if (ret == 0)
-		{
-			LOG_INF("CMD55 sent: response[0]=0x%02x", test_cmd.response[0]);
-		}
-		else
-		{
-			LOG_ERR("CMD55 failed with return value %d", ret);
-			Error_Handler();
-		}
-
-		// Send ACMD41 to set HCS (Host Capacity Support)
-		test_cmd.opcode = SD_APP_SEND_OP_COND;
-		test_cmd.arg = (1U << 30);
-		test_cmd.response_type = SD_SPI_RSP_TYPE_R1;
-		ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-		if (ret == 0)
-		{
-			LOG_INF("ACMD41 sent: response[0]=0x%02x", test_cmd.response[0]);
-		}
-		else
-		{
-			LOG_ERR("ACMD41 failed with return value %d", ret);
-			Error_Handler();
-		}
-	} while (test_cmd.response[0] & SD_SPI_R1IDLE_STATE);
-
-	// Send READ_OCR (CMD58) command again to verify CCS bit is set
-	test_cmd.opcode = SD_SPI_READ_OCR;
-	test_cmd.arg = 0;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R3;
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD58 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD58 failed with return value %d", ret);
-		Error_Handler();
-	}
-	LOG_DBG("Received response[1]=0x%0x", test_cmd.response[1]);
-
-	if (!(test_cmd.response[1] & (1U << 30)))
-	{
-		LOG_ERR("Failed to initialize card, received response[1]=0x%0x", test_cmd.response[1]);
-		Error_Handler();
-	}
-
-    // WRITE ZEROS ONTO THE BLOCK
+	// WRITE ZEROS ONTO THE BLOCK
 	// Send Write single block command CMD24
-	test_cmd.opcode = SD_WRITE_SINGLE_BLOCK;
-	test_cmd.arg = test_sdhc_data.block_addr;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R1;
-	data_present = 1;
-
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD24 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD24 failed with return value %d", ret);
-		Error_Handler();
-	}
-
-	snprintf((char *) data, sizeof(data), "0x%08X", (int) test_sdhc_data.block_addr);
-	ret = sdhc_spi_write_data(&test_dev, &test_sdhc_data);
+	ret = sdhc_write_data(&test_dev, &test_data);
 	if (ret != 0)
 	{
-		LOG_INF("Write Data command failed with return value %d", ret);
+		LOG_ERR("Test write 1 failed with return 0x%02x", ret);
+		Error_Handler();
 	}
+	LOG_INF("Test write 1 success");
 
-	test_sdhc_data.bytes_xfered = 512;
-
-    // READ THE BLOCK, VERIFY ALL 0
+	// READ THE BLOCK, VERIFY ALL 0
 	// Setup read command as CMD17 (READ_SINGLE_BLOCK), R1 response expected
-	test_cmd.opcode = SD_READ_SINGLE_BLOCK;
-	test_cmd.arg = test_sdhc_data.block_addr;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R1; // R1
-
-	data_present = 1;
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD17 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD17 failed with return value %d", ret);
-		Error_Handler();
-	}
-
-	ret = sdhc_spi_read_data(&test_dev, &test_sdhc_data);
+	ret = sdhc_read_data(&test_dev, &test_data);
 	if (ret != 0)
 	{
-		LOG_INF("Read Data command failed with return value %d", ret);
+		LOG_INF("Test read 1 failed with return value %d", ret);
+		Error_Handler();
 	}
+	LOG_INF("Test read 1 success");
 
-	test_sdhc_data.bytes_xfered = 512;
-
-	for (size_t off = 0; off < test_sdhc_data.block_size; off += 16)
+	// Print block
+	for (size_t off = 0; off < test_data.block_size; off += 16)
 	{
 		LOG_DBG("%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x",
-			data[off], data[off + 1], data[off + 2], data[off + 3],
-			data[off + 4], data[off + 5], data[off + 6], data[off + 7],
-			data[off + 8], data[off + 9], data[off + 10], data[off + 11],
-			data[off + 12], data[off + 13], data[off + 14], data[off + 15]);
+		        buf[off], buf[off + 1], buf[off + 2], buf[off + 3], buf[off + 4], buf[off + 5],
+		        buf[off + 6], buf[off + 7], buf[off + 8], buf[off + 9], buf[off + 10],
+		        buf[off + 11], buf[off + 12], buf[off + 13], buf[off + 14], buf[off + 15]);
 	}
 
-    // WRITE DEADBEEF PATTERN TO THE BLOCK
-	// Send Write single block command CMD24
-	test_cmd.opcode = SD_WRITE_SINGLE_BLOCK;
-	test_cmd.arg = test_sdhc_data.block_addr;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R1;
-	data_present = 1;
-
-	// Fill the data buffer with 0xDEADBEEF pattern in 4-byte chunks
-	for (size_t i = 0; i < test_sdhc_data.block_size; i += 4)
+	// WRITE DEADBEEF PATTERN TO THE BLOCK
+	for (size_t i = 0; (i + 3) < test_data.block_size; i += 4)
 	{
-		if ((i + 3) < test_sdhc_data.block_size)
-		{
-			data[i] = 0xDE;
-			data[i + 1] = 0xAD;
-			data[i + 2] = 0xBE;
-			data[i + 3] = 0xEF;
-		}
+		buf[i] = 0xDE;
+		buf[i + 1] = 0xAD;
+		buf[i + 2] = 0xBE;
+		buf[i + 3] = 0xEF;
 	}
-
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD24 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD24 failed with return value %d", ret);
-		Error_Handler();
-	}
-
-	snprintf((char *) data, sizeof(data), "0x%08X", (int) test_sdhc_data.block_addr);
-	ret = sdhc_spi_write_data(&test_dev, &test_sdhc_data);
+	ret = sdhc_write_data(&test_dev, &test_data);
 	if (ret != 0)
 	{
-		LOG_INF("Write Data command failed with return value %d", ret);
-	}
-
-	test_sdhc_data.bytes_xfered = 512;
-
-    // READ IT AGAIN, CHECK DEADBEEF PATTERN NOW ON BLOCK
-	// Setup read command as CMD17 (READ_SINGLE_BLOCK), R1 response expected
-    memset(test_sdhc_data.data, 0, 512); // Clear buffer first
-	test_cmd.opcode = SD_READ_SINGLE_BLOCK;
-	test_cmd.arg = test_sdhc_data.block_addr;
-	test_cmd.response_type = SD_SPI_RSP_TYPE_R1; // R1
-
-	data_present = 1;
-	ret = sdhc_spi_send_cmd(&test_dev, &test_cmd, data_present);
-	if (ret == 0)
-	{
-		LOG_INF("CMD17 sent: response[0]=0x%02x", test_cmd.response[0]);
-	}
-	else
-	{
-		LOG_ERR("CMD17 failed with return value %d", ret);
+		LOG_ERR("Test write 2 failed with return 0x%02x", ret);
 		Error_Handler();
 	}
+	LOG_INF("Test write 2 success");
 
-	ret = sdhc_spi_read_data(&test_dev, &test_sdhc_data);
+	// READ IT AGAIN, CHECK DEADBEEF PATTERN NOW ON BLOCK
+	memset(buf, 0, sizeof(buf));
+	ret = sdhc_read_data(&test_dev, &test_data);
 	if (ret != 0)
 	{
-		LOG_INF("Read Data command failed with return value %d", ret);
+		LOG_INF("Test read 2 failed with return 0x%02x", ret);
+		Error_Handler();
 	}
+	LOG_INF("Test read 2 success");
 
-	test_sdhc_data.bytes_xfered = 512;
-
-	for (size_t off = 0; off < test_sdhc_data.block_size; off += 16)
+	// Print Block
+	for (size_t off = 0; off < test_data.block_size; off += 16)
 	{
 		LOG_DBG("%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x",
-			data[off], data[off + 1], data[off + 2], data[off + 3],
-			data[off + 4], data[off + 5], data[off + 6], data[off + 7],
-			data[off + 8], data[off + 9], data[off + 10], data[off + 11],
-			data[off + 12], data[off + 13], data[off + 14], data[off + 15]);
+		        buf[off], buf[off + 1], buf[off + 2], buf[off + 3], buf[off + 4], buf[off + 5],
+		        buf[off + 6], buf[off + 7], buf[off + 8], buf[off + 9], buf[off + 10],
+		        buf[off + 11], buf[off + 12], buf[off + 13], buf[off + 14], buf[off + 15]);
 	}
+
+	// ===================
+	//  MULTI-BLOCK TESTS
+	// ===================
+	static uint8_t multi_write_buf[4 * 512];
+	static uint8_t multi_read_buf[4 * 512];
+
+	test_data.block_addr = 0x100;
+	test_data.block_size = 512;
+	test_data.blocks = 4;
+	test_data.timeout_ms = 500;
+
+	// Fill write buffer with incrementing pattern
+	for (size_t i = 0; i < sizeof(multi_write_buf); i++)
+	{
+		multi_write_buf[i] = (uint8_t) (i & 0xFF);
+	}
+	test_data.data = multi_write_buf;
+
+	// Send command to write multiple block (incrementing)
+	ret = sdhc_write_data(&test_dev, &test_data);
+	if (ret != 0)
+	{
+		LOG_ERR("Multi-block write (incremental) failed: %d", ret);
+		Error_Handler();
+	}
+	LOG_INF("Write 4-block incrementing pattern success");
+
+	memset(multi_read_buf, 0, sizeof(multi_read_buf));
+	test_data.data = multi_read_buf;
+
+	ret = sdhc_read_data(&test_dev, &test_data);
+	if (ret != 0)
+	{
+		LOG_INF("Multi-block read (incremental) failed with return 0x%02x", ret);
+		Error_Handler();
+	}
+
+	// Verify data
+	for (size_t i = 0; i < sizeof(multi_read_buf); i++)
+	{
+		if (multi_read_buf[i] != multi_write_buf[i])
+		{
+			LOG_ERR("Incremental verify fail @ byte %u: wrote 0x%02x, read 0x%02x", (unsigned) i,
+			        multi_write_buf[i], multi_read_buf[i]);
+			Error_Handler();
+			break;
+		}
+	}
+	LOG_INF("Read 4-block incrementing pattern success");
+
+	// Test: multi-block write/read 0xAA/0x55 alternating pattern
+	for (size_t i = 0; i < sizeof(multi_write_buf); i++)
+	{
+		multi_write_buf[i] = (i % 2 == 0) ? 0xAA : 0x55;
+	}
+	test_data.data = multi_write_buf;
+
+	// Send command to write multiple block
+	ret = sdhc_write_data(&test_dev, &test_data);
+	if (ret != 0)
+	{
+		LOG_ERR("Multi-block write (0xAA55) failed: %d", ret);
+		Error_Handler();
+	}
+	LOG_INF("CMD25 write 0xAA/0x55 alternating pattern success");
+
+	memset(multi_read_buf, 0, sizeof(multi_read_buf));
+	test_data.data = multi_read_buf;
+
+	ret = sdhc_read_data(&test_dev, &test_data);
+	if (ret != 0)
+	{
+		LOG_INF("Multi-block read (0xAA55) failed with return 0x%02x", ret);
+		Error_Handler();
+	}
+
+	for (size_t i = 0; i < sizeof(multi_read_buf); i++)
+	{
+		uint8_t expected = (i % 2 == 0) ? 0xAA : 0x55;
+		if (multi_read_buf[i] != expected)
+		{
+			LOG_ERR("0xAA55 verify fail @ byte %u: expected 0x%02x, got 0x%02x", (unsigned) i,
+			        expected, multi_read_buf[i]);
+			Error_Handler();
+		}
+	}
+	LOG_INF("Read 4-block 0xAA55 pattern success");
+
+	// Test: multi-block write/read all zeros
+	memset(multi_write_buf, 0x00, sizeof(multi_write_buf));
+	test_data.data = multi_write_buf;
+	test_data.bytes_xfered = 0;
+
+	ret = sdhc_write_data(&test_dev, &test_data);
+	if (ret != 0)
+	{
+		LOG_ERR("Multi-block write (zeros) failed: %d", ret);
+		Error_Handler();
+	}
+	LOG_INF("CMD25 write all-zeros success");
+
+	memset(multi_read_buf, 0xFF, sizeof(multi_read_buf));
+	test_data.data = multi_read_buf;
+	test_data.bytes_xfered = 0;
+
+	ret = sdhc_read_data(&test_dev, &test_data);
+	if (ret != 0)
+	{
+		LOG_INF("Multi-block read (zeros) failed with return 0x%02x", ret);
+		Error_Handler();
+	}
+
+	for (size_t i = 0; i < sizeof(multi_read_buf); i++)
+	{
+		if (multi_read_buf[i] != 0x00)
+		{
+			LOG_ERR("Zeros verify fail @ byte %u: got 0x%02x", (unsigned) i, multi_read_buf[i]);
+			Error_Handler();
+		}
+	}
+	LOG_INF("Read 4-block zeros pattern success");
+
+	LOG_INF("All multi-block tests PASSED");
 
 	/* Infinite loop */
 	while (1)
