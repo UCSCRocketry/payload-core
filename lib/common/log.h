@@ -9,6 +9,9 @@
 #ifndef __LOG_H
 #define __LOG_H
 
+// By default, do not print debug messages
+#define LOG_NODEBUG
+
 #include "stm32f4xx_hal.h"
 
 	/** Call once after UART init to set the log output port. */
