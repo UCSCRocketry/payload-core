@@ -76,7 +76,12 @@ int main(void)
 	test_data.data = buf; /*!< Data to transfer or receive */
 	test_data.timeout_ms = 500; /*!< data timeout in milliseconds */
 
-	sdhc_init(&test_dev);
+	ret = sdhc_init(&test_dev);
+    if (ret != 0)
+    {
+        LOG_ERR("SD card init fail with return val %d", ret);
+        Error_Handler();
+    }
 
 	// ====================
 	//  SINGLE-BLOCK TESTS
