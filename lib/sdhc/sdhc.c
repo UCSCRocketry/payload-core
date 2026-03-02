@@ -15,10 +15,12 @@ int sdhc_init(struct sdhc_spi_device *dev)
 	// This performs power up
 	if (sdhc_init_card(hspi) != HAL_OK)
 	{
+        LOG_ERR("SD Initialization: Power up fail");
 		return -EIO;
 	}
 	if (sdhc_spi_wait_unbusy(hspi, 100, 100))
 	{
+        LOG_ERR("SD Initialization: Time out");
 		return -ETIMEDOUT;
 	}
 
@@ -121,6 +123,7 @@ int sdhc_init(struct sdhc_spi_device *dev)
 		attempts++;
 		if (attempts >= SDHC_MAX_ACMD41_SEND_ATTEMPTS)
 		{
+            LOG_ERR("SD Initialization: ACMD41 time out");
 			return -ETIMEDOUT;
 		}
 
