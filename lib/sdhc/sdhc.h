@@ -4,7 +4,7 @@
 #include "sdhc_spi.h"
 #include "log.h"
 
-#define SDHC_MAX_ACMD41_SEND_ATTEMPTS 5
+#define SDHC_MAX_ACMD41_SEND_ATTEMPTS 300
 
 int sdhc_init(struct sdhc_spi_device *dev);
 int sdhc_write_data(struct sdhc_spi_device *dev, struct sdhc_data *data);
