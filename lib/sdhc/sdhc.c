@@ -228,4 +228,6 @@ int sdhc_read_data(struct sdhc_spi_device *dev, struct sdhc_data *data)
 		}
 	}
 	LOG_DBG("Read block data successful");
+
+    return 0;
 }
