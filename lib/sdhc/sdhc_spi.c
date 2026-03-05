@@ -348,11 +348,11 @@ int sdhc_spi_send_cmd(struct sdhc_spi_device *dev, struct sdhc_command *cmd, int
 	{
 		/* We cannot send extra SCLK cycles with our command,
 		 * since we'll miss the data the card responds with. We
-		 * send one 0xff byte, six command bytes, two additional 0xff
-		 * bytes, since the min value of NCR (see SD SPI timing
-		 * diagrams) is one, and we know there will be an R1 response.
+		 * send one 0xff byte, six command bytes, and eight additional
+		 * 0xff bytes to cover the full NCR range (1-8 bytes per SD
+		 * SPI spec).
 		 */
-		scratch_len = SD_SPI_CMD_SIZE + 3;
+		scratch_len = SD_SPI_CMD_SIZE + 1 + 8;
 	}
 
 	memset(scratch, 0xFF, sizeof(dev_data->scratch));
