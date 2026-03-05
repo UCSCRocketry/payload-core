@@ -9,6 +9,11 @@
 extern "C" {
 #endif
 
+extern struct sdhc_spi_device sd_dev;
+
+#define SDHC_BLOCK_SIZE	    512
+#define SDHC_TIMEOUT_MS	    500
+
 /* Status of Disk Functions */
 typedef BYTE	DSTATUS;
 
