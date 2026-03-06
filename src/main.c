@@ -1,6 +1,9 @@
 
 #include "main.h"
 #include "stm32f4xx_hal_spi.h"
+#include"log.h"
+#include"sensor.h"
+#include"bmp388.h"
 
 CRC_HandleTypeDef hcrc;
 
@@ -50,9 +53,41 @@ int main(void)
 	MX_SPI1_Init();
 	MX_CRC_Init();
 
+	log_init(&huart2);
+
+
+	// bmp388 initialization (altimeter)
+	struct bmp388_config bmp388_config = {
+		.hspi = &hspi3,
+	};
+	struct bmp388_data bmp388_data = { 0 };
+	struct bmp388_device bmp388_dev = {
+		.config = &bmp388_config,
+		.data = &bmp388_data,
+	};
+	struct sensor_value temp_val = { 0 };
+	int ret = bmp388_init(&bmp388_dev);
+	if (ret)
+	{
+		LOG_ERR("BMP388 Init fail, ret = %d", ret);
+		Error_Handler();
+	}
+
 	/* Infinite loop */
 	while (1)
 	{
+		// bmp388
+		ret = bmp388_sample_fetch(&bmp388_dev);
+		if (ret)
+		{
+			LOG_ERR("BMP388 fetch sample fail, ret = %d", ret);
+			Error_Handler();
+		}
+		(void) bmp388_channel_get(&bmp388_dev, SENSOR_CHAN_AMBIENT_TEMP, &temp_val);
+
+		LOG_INF("Received Temperature Value: %f", sensor_value_to_float(&temp_val));
+
+		HAL_Delay(200);
 	}
 }
 
