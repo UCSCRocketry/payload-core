@@ -4,6 +4,8 @@
 #include"log.h"
 #include"sensor.h"
 #include"bmp388.h"
+#include "sdhc.h"
+#include "ff.h"
 
 CRC_HandleTypeDef hcrc;
 
@@ -73,6 +75,64 @@ int main(void)
 		Error_Handler();
 	}
 
+	// Initialize SD card
+	struct sdhc_spi_device sd_dev;
+    int retSD;
+	static struct sdhc_spi_config sd_config = {
+		.hspi = &hspi2,
+	};
+	static struct sdhc_spi_data sd_spi_data = { 0 };
+    sd_dev.config = &sd_config;
+    sd_dev.data = &sd_spi_data;
+
+	retSD = sdhc_init(&sd_dev);
+    if (retSD != 0)
+    {
+        LOG_ERR("SD card init fail with return val %d", retSD);
+        Error_Handler();
+    }
+
+	// mount filesystem
+	f_mount();
+
+	// open file
+	FIL file;
+	f_open(&file, "data.txt", FA_CREATE_ALWAYS | FA_WRITE);
+
+
+	// for loop - buffer 50 values
+	float readings[50];
+
+	for (int i = 0; i < 50; i++) {
+		// fetch sample, get channel, convert to float
+		ret = bmp388_sample_fetch(&bmp388_dev);
+		if (ret)
+		{
+			LOG_ERR("BMP388 fetch sample fail, ret = %d", ret);
+			Error_Handler();
+		}
+		(void) bmp388_channel_get(&bmp388_dev, SENSOR_CHAN_AMBIENT_TEMP, &temp_val);
+
+		readings[i] = sensor_value_to_float(&temp_val);
+		LOG_INF("Sample %d: %f", i, readings[i]);
+		HAL_Delay(200);  // ~10 seconds total for 50 samples
+	} 
+
+
+	// write to file
+	LOG_INF("Writing to a log.txt...");
+    FIL file;
+    uint64_t bytes_to_write, bytes_written;
+
+	char line[32];
+	for (int i = 0; i < 50; i++) {
+		int len = snprintf(line, sizeof(line), "%f\r\n", readings[i]);
+		f_write(&file, line, len, &bytes_written);
+	}
+
+	////////
+
+
 	/* Infinite loop */
 	while (1)
 	{
@@ -89,6 +149,9 @@ int main(void)
 
 		HAL_Delay(200);
 	}
+	
+	
+	
 }
 
 /**
