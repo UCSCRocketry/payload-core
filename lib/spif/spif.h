@@ -56,7 +56,8 @@ extern "C"
 #include <stdbool.h>
 #include <string.h>
 #include "NimaLTD.I-CUBE-SPIF_conf.h"
-#include "spi.h"
+#include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_spi.h"
 
 /************************************************************************************************************
 **************    Public Definitions
@@ -94,7 +95,6 @@ typedef enum
   SPIF_MANUFACTOR_AMIC = 0x37,
   SPIF_MANUFACTOR_SST = 0xBF,
   SPIF_MANUFACTOR_HYUNDAI = 0xAD,
-  SPIF_MANUFACTOR_ATMEL = 0x1F,
   SPIF_MANUFACTOR_FUDAN = 0xA1,
   SPIF_MANUFACTOR_ESMT = 0x8C,
   SPIF_MANUFACTOR_INTEL = 0x89,
@@ -102,6 +102,12 @@ typedef enum
   SPIF_MANUFACTOR_FUJITSU = 0x04,
   SPIF_MANUFACTOR_EON = 0x1C,
   SPIF_MANUFACTOR_PUYA = 0x85,
+
+  // This is a legacy code that does not conform to JEDEC JEP106
+  SPIF_MANUFACTOR_RENESAS = 0x1F,
+
+  // This is an arbitrary code that does not conform to JEDEC JEP106
+  SPIF_MANUFACTOR_BYTE_SEMI = 0x68,
 
 } SPIF_ManufactorTypeDef;
 
@@ -118,6 +124,8 @@ typedef enum
   SPIF_SIZE_128MBIT = 0x18,
   SPIF_SIZE_256MBIT = 0x19,
   SPIF_SIZE_512MBIT = 0x20,
+
+  SPIF_SIZE_128MBIT_RENESAS = 0x01,
 
 } SPIF_SizeTypeDef;
 
