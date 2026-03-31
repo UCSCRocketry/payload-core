@@ -586,3 +586,32 @@ int sdhc_spi_write_data(const struct sdhc_spi_device *dev, struct sdhc_data *dat
 	}
 	return 0;
 }
+
+int sdhc_spi_set_frequency(SPI_HandleTypeDef *hspi, uint32_t max_freq)
+{
+	uint32_t pclk = HAL_RCC_GetPCLK1Freq();
+	static const uint32_t prescalers[] = {
+		SPI_BAUDRATEPRESCALER_2,   SPI_BAUDRATEPRESCALER_4,   SPI_BAUDRATEPRESCALER_8,
+		SPI_BAUDRATEPRESCALER_16,  SPI_BAUDRATEPRESCALER_32,  SPI_BAUDRATEPRESCALER_64,
+		SPI_BAUDRATEPRESCALER_128, SPI_BAUDRATEPRESCALER_256,
+	};
+	static const uint32_t divisors[] = { 2, 4, 8, 16, 32, 64, 128, 256 };
+
+	uint32_t prescaler = SPI_BAUDRATEPRESCALER_256;
+	for (int i = 0; i < 8; i++)
+	{
+		if (pclk / divisors[i] <= max_freq)
+		{
+			prescaler = prescalers[i];
+			break;
+		}
+	}
+
+	hspi->Init.BaudRatePrescaler = prescaler;
+	if (HAL_SPI_Init(hspi) != HAL_OK)
+	{
+		return -EIO;
+	}
+
+	return 0;
+}

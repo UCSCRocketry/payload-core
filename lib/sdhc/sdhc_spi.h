@@ -201,4 +201,6 @@ int sdhc_spi_send_cmd(struct sdhc_spi_device *dev, struct sdhc_command *cmd, int
 int sdhc_spi_read_data(const struct sdhc_spi_device *dev, struct sdhc_data *data);
 int sdhc_spi_write_data(const struct sdhc_spi_device *dev, struct sdhc_data *data);
 
+int sdhc_spi_set_frequency(SPI_HandleTypeDef *hspi, uint32_t max_freq);
+
 #endif // __SDHC_SPI_H__

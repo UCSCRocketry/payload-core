@@ -12,6 +12,14 @@ int sdhc_init(struct sdhc_spi_device *dev)
 	int ret;
 	uint8_t attempts;
 
+    /// Ensure SPI baud rate during startup is below 400 kHz
+    ret = sdhc_spi_set_frequency(hspi, 400000);
+	if (ret != 0)
+	{
+		LOG_ERR("SD Initialization: Failed to set SPI frequency below 400 kHz for startup sequence");
+		return ret;
+	}
+
 	// This performs power up
 	if (sdhc_init_card(hspi) != HAL_OK)
 	{
@@ -149,6 +157,17 @@ int sdhc_init(struct sdhc_spi_device *dev)
             Are you using an SDSC card? Received response[1]=0x%0x",
 		        cmd.response[1]);
 		return -ENOTSUP;
+	}
+
+	// Increase SPI bus speed after initialization sequence is done
+	if (config->spi_max_freq > 0)
+	{
+		ret = sdhc_spi_set_frequency(hspi, config->spi_max_freq);
+		if (ret != 0)
+		{
+			LOG_ERR("SD Initialization: Failed to set SPI frequency higher");
+			return ret;
+		}
 	}
 
 	LOG_INF("SD initialization successful");

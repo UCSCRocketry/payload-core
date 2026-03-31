@@ -60,6 +60,7 @@ int main(void)
 	int ret;
 	static struct sdhc_spi_config test_config = {
 		.hspi = &hspi2,
+		.spi_max_freq = 20000000,
 	};
 	static struct sdhc_spi_data test_spi_data = { 0 };
 	static struct sdhc_spi_device test_dev = {
