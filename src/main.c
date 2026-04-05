@@ -1,5 +1,7 @@
 
 #include "main.h"
+#include "payload.h"
+#include "log.h"
 #include "stm32f4xx_hal_spi.h"
 
 CRC_HandleTypeDef hcrc;
@@ -50,10 +52,12 @@ int main(void)
 	MX_SPI1_Init();
 	MX_CRC_Init();
 
-	/* Infinite loop */
-	while (1)
-	{
-	}
+	log_init(&huart2);
+
+	payload_run();
+
+    // We should not get here
+    while (1);
 }
 
 /**
