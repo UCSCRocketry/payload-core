@@ -62,8 +62,8 @@ extern "C"
 /* Private defines -----------------------------------------------------------*/
 #define GPIO_LED_Pin          GPIO_PIN_13
 #define GPIO_LED_GPIO_Port    GPIOC
-#define SPI4_CS_MAG_Pin       GPIO_PIN_0
-#define SPI4_CS_MAG_GPIO_Port GPIOA
+#define GPIO_BTN_Pin          GPIO_PIN_0
+#define GPIO_BTN_GPIO_Port    GPIOA
 #define SPI1_CS_Pin           GPIO_PIN_4
 #define SPI1_CS_GPIO_Port     GPIOA
 #define SPI3_CS_Pin           GPIO_PIN_0
