@@ -1,26 +1,14 @@
-/**
- ******************************************************************************
- * @file           : main.c
- * @author         : Kyle Chen
- * @brief          : Main program body
- ******************************************************************************
- */
-/* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 #include "sensor.h"
 #include "log.h"
 #include "lsm9ds1.h"
 #include "stm32f4xx_hal_spi.h"
 
-/* Private includes ----------------------------------------------------------*/
+// #define __MAG_ENABLED__
 
-/* Private typedef -----------------------------------------------------------*/
+CRC_HandleTypeDef hcrc;
 
-/* Private define ------------------------------------------------------------*/
-
-/* Private macro -------------------------------------------------------------*/
-
-/* Private variables ---------------------------------------------------------*/
 RTC_HandleTypeDef hrtc;
 
 SPI_HandleTypeDef hspi1;
@@ -32,7 +20,6 @@ TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
 
-
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -43,6 +30,7 @@ static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI4_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_CRC_Init(void);
 
 /**
  * @brief  The application entry point.
@@ -50,9 +38,6 @@ static void MX_SPI1_Init(void);
  */
 int main(void)
 {
-
-	/* MCU Configuration--------------------------------------------------------*/
-
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	HAL_Init();
 
@@ -68,8 +53,9 @@ int main(void)
 	MX_USART2_UART_Init();
 	MX_SPI4_Init();
 	MX_SPI1_Init();
+	MX_CRC_Init();
 
-    log_init(&huart2);
+	log_init(&huart2);
     LOG_INF("Hello World!");
 
     // Initialize IMU
@@ -97,6 +83,7 @@ int main(void)
 
 
     // Initialize magnetometer
+#ifdef __MAG_ENABLED__
     struct lsm9ds1_mag_config mag_config;
 	struct lsm9ds1_mag_data mag_data;
 	struct lsm9ds1_mag_device mag_device = {
@@ -117,11 +104,14 @@ int main(void)
 	{
 		LOG_INF("LSM9DS1 Mag Initialized");
 	}
+#endif
 
     // Structs to store sensor value
     struct sensor_value accel_val[3] = {0};
     struct sensor_value gyro_val[3] = {0};
+#ifdef __MAG_ENABLED__
     struct sensor_value mag_val[3] = {0};
+#endif
 
 
 	// Infinitely read sensor data and output to serial
@@ -156,6 +146,7 @@ int main(void)
         LOG_RAW(">gyroX:%f,gyroY:%f,gyroZ:%f", sensor_value_to_float(&gyro_val[0]), 
             sensor_value_to_float(&gyro_val[1]), sensor_value_to_float(&gyro_val[2]));
 
+#ifdef __MAG_ENABLED__
         if (lsm9ds1_mag_sample_fetch(&mag_device))
         {
             Error_Handler();
@@ -168,6 +159,7 @@ int main(void)
         LOG_INF("LSM9DS1 Received SENSOR_CHAN_MAGN_XYZ");
         LOG_RAW(">magX:%f,magY:%f,magZ:%f", sensor_value_to_float(&mag_val[0]), 
             sensor_value_to_float(&mag_val[1]), sensor_value_to_float(&mag_val[2]));
+#endif
 
         HAL_Delay(200);
 	}
@@ -190,14 +182,13 @@ void SystemClock_Config(void)
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_LSI;
-	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-	RCC_OscInitStruct.LSIState = RCC_LSI_ON;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_LSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	RCC_OscInitStruct.LSEState = RCC_LSE_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-	RCC_OscInitStruct.PLL.PLLM = 8;
-	RCC_OscInitStruct.PLL.PLLN = 50;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 12;
+	RCC_OscInitStruct.PLL.PLLN = 96;
 	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
 	RCC_OscInitStruct.PLL.PLLQ = 4;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -210,7 +201,7 @@ void SystemClock_Config(void)
 	RCC_ClkInitStruct.ClockType
 	        = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV2;
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
@@ -218,6 +209,31 @@ void SystemClock_Config(void)
 	{
 		Error_Handler();
 	}
+}
+
+/**
+ * @brief CRC Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_CRC_Init(void)
+{
+
+	/* USER CODE BEGIN CRC_Init 0 */
+
+	/* USER CODE END CRC_Init 0 */
+
+	/* USER CODE BEGIN CRC_Init 1 */
+
+	/* USER CODE END CRC_Init 1 */
+	hcrc.Instance = CRC;
+	if (HAL_CRC_Init(&hcrc) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN CRC_Init 2 */
+
+	/* USER CODE END CRC_Init 2 */
 }
 
 /**
@@ -278,6 +294,7 @@ static void MX_SPI1_Init(void)
 	hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
 	hspi1.Init.NSS = SPI_NSS_SOFT;
 	hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+	
 	hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
 	hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
 	hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -314,7 +331,7 @@ static void MX_SPI2_Init(void)
 	hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
 	hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
 	hspi2.Init.NSS = SPI_NSS_SOFT;
-	hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+	hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128; // ~ 380 kHz
 	hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
 	hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
 	hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -348,10 +365,10 @@ static void MX_SPI3_Init(void)
 	hspi3.Init.Mode = SPI_MODE_MASTER;
 	hspi3.Init.Direction = SPI_DIRECTION_2LINES;
 	hspi3.Init.DataSize = SPI_DATASIZE_8BIT;
-	hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
-	hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
+	hspi3.Init.CLKPolarity = SPI_POLARITY_HIGH;
+	hspi3.Init.CLKPhase = SPI_PHASE_2EDGE;
 	hspi3.Init.NSS = SPI_NSS_SOFT;
-	hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+	hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
 	hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
 	hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
 	hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -516,17 +533,18 @@ static void MX_GPIO_Init(void)
 
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOH_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOA, SPI4_CS_MAG_Pin | SPI2_CS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_SET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOB, SPI3_CS_Pin | SPI4_CS_IMU_Pin | SPI1_CS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, SPI3_CS_Pin | SPI4_CS_IMU_Pin | SPI2_CS_Pin, GPIO_PIN_SET);
 
 	/*Configure GPIO pin : GPIO_LED_Pin */
 	GPIO_InitStruct.Pin = GPIO_LED_Pin;
@@ -535,15 +553,21 @@ static void MX_GPIO_Init(void)
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIO_LED_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : SPI4_CS_MAG_Pin SPI2_CS_Pin */
-	GPIO_InitStruct.Pin = SPI4_CS_MAG_Pin | SPI2_CS_Pin;
+	/*Configure GPIO pin : GPIO_BTN_Pin */
+	GPIO_InitStruct.Pin = GPIO_BTN_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIO_BTN_GPIO_Port, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : SPI1_CS_Pin */
+	GPIO_InitStruct.Pin = SPI1_CS_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	HAL_GPIO_Init(SPI1_CS_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : SPI3_CS_Pin SPI4_CS_IMU_Pin SPI1_CS_Pin */
-	GPIO_InitStruct.Pin = SPI3_CS_Pin | SPI4_CS_IMU_Pin | SPI1_CS_Pin;
+	/*Configure GPIO pins : SPI3_CS_Pin SPI4_CS_IMU_Pin SPI2_CS_Pin */
+	GPIO_InitStruct.Pin = SPI3_CS_Pin | SPI4_CS_IMU_Pin | SPI2_CS_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -569,7 +593,6 @@ void Error_Handler(void)
 	__disable_irq();
 	while (1)
 	{
-        HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
 	}
 	/* USER CODE END Error_Handler_Debug */
 }
