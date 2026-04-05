@@ -521,6 +521,7 @@ bool SPIF_FindChip(SPIF_HandleTypeDef *Handle)
       break;
     }
     LOG_DBG("SPIF MANUFACTURER: %s - MEMTYPE: 0x%02X", mfr_str, Handle->MemType);
+    (void) mfr_str; // Cast so compiler stops complaining if debug not on
 
     const char *size_str;
     switch (Handle->Size)
@@ -543,6 +544,7 @@ bool SPIF_FindChip(SPIF_HandleTypeDef *Handle)
       break;
     }
     LOG_DBG("SPIF SIZE: %s", size_str);
+    (void) size_str; // Cast so compiler stops complaining if debug not on
 
     Handle->SectorCnt = Handle->BlockCnt * 16;
     Handle->PageCnt = (Handle->SectorCnt * SPIF_SECTOR_SIZE) / SPIF_PAGE_SIZE;

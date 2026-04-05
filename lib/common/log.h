@@ -6,8 +6,8 @@
  ******************************************************************************
  */
 
-#ifndef __LOG_H
-#define __LOG_H
+#ifndef __LOG_H__
+#define __LOG_H__
 
 // By default, do not print debug messages
 #define LOG_NODEBUG
@@ -31,4 +31,4 @@
 #define LOG_WRN(fmt, ...) log_msg("WRN", fmt "\r\n", ##__VA_ARGS__)
 #define LOG_RAW(fmt, ...) log_msg_raw(fmt "\r\n", ##__VA_ARGS__)
 
-#endif /* __LOG_H */
+#endif // __LOG_H__

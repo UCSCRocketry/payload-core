@@ -12,7 +12,7 @@
 #ifndef ZEPHYR_LIB_LIBC_IAR_INCLUDE_ERRNO_H_
 #define ZEPHYR_LIB_LIBC_IAR_INCLUDE_ERRNO_H_
 
-#include_next <errno.h>
+// #include_next <errno.h>
 
 #ifndef __cplusplus
 #define EPERM            1  /**< Not owner */
@@ -91,6 +91,7 @@
 #define ENOTSUP         134 /**< Unsupported value */
 #define EOVERFLOW       139 /**< Value overflow */
 #define ECANCELED       140 /**< Operation canceled */
+#define EILSEQ          141 /**< Illegal Sequence */
 #define EWOULDBLOCK  EAGAIN /**< Operation would block */
 #endif /* __cplusplus */
 #endif /* ZEPHYR_LIB_LIBC_IAR_INCLUDE_ERRNO_H_ */
