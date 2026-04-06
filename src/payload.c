@@ -12,6 +12,7 @@
 #include "sensor.h"
 #include "main.h"
 #include "log.h"
+#include "stm32f4xx_hal_gpio.h"
 #include <string.h>
 #include <stdbool.h>
 
@@ -74,6 +75,7 @@ void payload_run(void)
 
 	struct prebuf pb = { 0 };
 
+    // Logging to prebuffer until launch detected
 	while (1)
 	{
 		struct payload_sample s = { 0 };
@@ -89,7 +91,7 @@ void payload_run(void)
 				break;
 			}
 		}
-		HAL_Delay(100);
+		HAL_Delay(PAYLOAD_PREBUF_POLL_PERIOD_MS);
 	}
 
 	uint32_t page_idx = prebuf_flush(&pb, &spif);
@@ -110,6 +112,8 @@ void payload_run(void)
     }
 #endif
 
+    // Regular Recording Loop
+    HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
 	LOG_INF("Recording: page %lu / %lu", page_idx, spif.PageCnt);
 	{
 		struct payload_page page;
@@ -135,11 +139,12 @@ void payload_run(void)
 					memset(&page, 0xFF, sizeof(page));
 				}
 			}
-			HAL_Delay(10);
+			HAL_Delay(PAYLOAD_MAIN_POLL_PERIOD_MS);
 		}
 	}
 
 	LOG_INF("Flash full (%lu pages). Entering low-power stop mode.", spif.PageCnt);
+    HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
 	HAL_SuspendTick();
 	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 

@@ -83,6 +83,7 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 	// }
 
     // Perform the data transfer
+	LOG_INF("Performing data transfer...DO NOT REMOVE CARD");
 	__HAL_CRC_DR_RESET(&hcrc);
 	for (uint32_t i = 0; i < num_pages; i++)
 	{
@@ -107,7 +108,7 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 		}
 	}
 	(void) f_close(&file);
-	LOG_INF("Dump: wrote %lu pages, CRC=0x%08lX", num_pages, crc_wr);
+	LOG_INF("Dump: Transfer success, wrote %lu pages, CRC=0x%08lX", num_pages, crc_wr);
 
 	// ******** Verify the dump ********
     // Open the file
@@ -126,6 +127,7 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 	// }
 
     // Perform the CRC calculation
+	LOG_INF("Performing data verification...DO NOT REMOVE CARD");
 	__HAL_CRC_DR_RESET(&hcrc);
 	for (uint32_t p = 0; p < num_pages; p++)
 	{
@@ -142,7 +144,7 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 		                              SPIF_PAGE_SIZE / sizeof(uint32_t));
 	}
 	(void) f_close(&file);
-	LOG_INF("Dump: verify CRC=0x%08lX", crc_rd);
+	LOG_INF("Dump: SD card data CRC=0x%08lX", crc_rd);
 
     // Check CRC is matching
 	if (crc_wr != crc_rd)
