@@ -9,6 +9,9 @@
 #include <stdint.h>
 #include "stm32f4xx_hal.h"
 
+#define PAYLOAD_PREBUF_POLL_PERIOD_MS	500U
+#define PAYLOAD_MAIN_POLL_PERIOD_MS		500U
+
 
 // User button port/pin on Blackpill
 #define PAYLOAD_BTN_GPIO_PORT   GPIOA
