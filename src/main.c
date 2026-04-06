@@ -96,11 +96,11 @@ void SystemClock_Config(void)
 	RCC_ClkInitStruct.ClockType
 	        = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV2;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -299,7 +299,7 @@ static void MX_SPI4_Init(void)
 	hspi4.Init.CLKPolarity = SPI_POLARITY_HIGH;
 	hspi4.Init.CLKPhase = SPI_PHASE_2EDGE;
 	hspi4.Init.NSS = SPI_NSS_SOFT;
-	hspi4.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+	hspi4.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
 	hspi4.Init.FirstBit = SPI_FIRSTBIT_MSB;
 	hspi4.Init.TIMode = SPI_TIMODE_DISABLE;
 	hspi4.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -432,7 +432,7 @@ static void MX_GPIO_Init(void)
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_SET);
