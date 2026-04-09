@@ -15,6 +15,7 @@
 #include "stm32f4xx_hal_gpio.h"
 #include <string.h>
 #include <stdbool.h>
+#include "stm32f4xx_hal_tim.h"
 
 _Static_assert(sizeof(struct payload_page) == 256, "payload_page must be exactly 256 bytes");
 
@@ -22,7 +23,11 @@ extern SPI_HandleTypeDef hspi1; // For SPIF
 extern SPI_HandleTypeDef hspi3; // For BMP
 extern SPI_HandleTypeDef hspi4; // For IMU
 
+extern TIM_HandleTypeDef htim1;
+
 static SPIF_HandleTypeDef spif;
+
+static enum led_state_e led_state = LED_OFF;
 
 void payload_run(void)
 {
@@ -38,6 +43,7 @@ void payload_run(void)
 	if (button_pressed())
 	{
 		LOG_INF("Startup button held - dumping flash to SD card...");
+		led_state = LED_BLINK_FAST;
 		if (!dump_and_format_flash(&spif))
 		{
 			LOG_INF("Dump OK");
@@ -46,6 +52,7 @@ void payload_run(void)
 		{
 			LOG_ERR("Dump failed - flash NOT erased");
 		}
+		led_state = LED_OFF;
 	}
 
 	// Wait 10 seconds as a buffer between dump sensitive and arm sensitive button
@@ -58,6 +65,7 @@ void payload_run(void)
 		HAL_Delay(50);
 	}
 	LOG_INF("Armed.");
+	led_state = LED_BLINK_SLOW;
 
 	// Initialize sensors
 	if (sensor_io_init(&hspi3, &hspi4) != 0)
@@ -113,7 +121,7 @@ void payload_run(void)
 #endif
 
     // Regular Recording Loop
-    HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
+    led_state = LED_ON;
 	LOG_INF("Recording: page %lu / %lu", page_idx, spif.PageCnt);
 	{
 		struct payload_page page;
@@ -144,9 +152,35 @@ void payload_run(void)
 	}
 
 	LOG_INF("Flash full (%lu pages). Entering low-power stop mode.", spif.PageCnt);
+	led_state = LED_OFF;
     HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
 	HAL_SuspendTick();
 	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 
 	while (1);
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim == &htim1)
+    {
+		switch (led_state)
+		{
+			case LED_ON:
+				HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
+				break;
+			case LED_BLINK_SLOW:
+				__HAL_TIM_SET_AUTORELOAD(htim, 0xFFFF);
+				HAL_GPIO_TogglePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin);
+				break;
+			case LED_BLINK_FAST:
+				__HAL_TIM_SET_AUTORELOAD(htim, 0x5555);
+				HAL_GPIO_TogglePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin);
+				break;
+			default: // LED_OFF
+				HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+				break;
+		}
+        
+    }
 }
