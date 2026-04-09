@@ -69,6 +69,14 @@ struct payload_page
 	struct payload_sample samples[PAYLOAD_SAMPLES_PER_PAGE];
 } __attribute__((packed));
 
+enum led_state_e
+{
+	LED_ON,
+	LED_BLINK_SLOW,
+	LED_BLINK_FAST,
+	LED_OFF,
+};
+
 /**
  * @brief Run the payload state machine.
  */
