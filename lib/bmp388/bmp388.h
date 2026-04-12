@@ -15,7 +15,7 @@
 #define BMP388_SPI_TIMEOUT 100
 
 #define BMP388_CS_GPIO_PORT GPIOB
-#define BMP388_CS_GPIO_PIN  GPIO_PIN_0
+#define BMP388_CS_GPIO_PIN  GPIO_PIN_3
 
 // I2C Device Addresses
 #define BMP388_DEVICE_ADDR       0x76
