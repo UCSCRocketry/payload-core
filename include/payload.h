@@ -9,9 +9,14 @@
 #include <stdint.h>
 #include "stm32f4xx_hal.h"
 
-#define PAYLOAD_PREBUF_POLL_PERIOD_MS	500U
-#define PAYLOAD_MAIN_POLL_PERIOD_MS		500U
+// If defined, some test-specific functionality will be enabled
+#define __PAYLOAD_TESTING__
 
+// Sensor polling period during prelaunch buffer capture
+#define PAYLOAD_PREBUF_POLL_PERIOD_MS	500U
+
+// Sensor polling period during flight
+#define PAYLOAD_MAIN_POLL_PERIOD_MS		500U
 
 // User button port/pin on Blackpill
 #define PAYLOAD_BTN_GPIO_PORT   GPIOA
@@ -23,8 +28,17 @@
 // Number of BMP388 readings averaged to establish the launch-site baseline.
 #define PAYLOAD_BASELINE_SAMPLES    16
 
-#define PAYLOAD_PREBUF_DEPTH    64 // Prelaunch buffer size
+// Prelaunch buffer size
+#define PAYLOAD_PREBUF_DEPTH    	64
+
+// Number of payload samples (64B) per page (256B)
 #define PAYLOAD_SAMPLES_PER_PAGE    4
+
+// After launch detection, payload records for this amount of time
+#define PAYLOAD_MAX_RECORD_LEN_S	1200
+
+// Maximum number of samples recorded after launch detection
+#define PAYLOAD_MAX_SAMPLES_NUM		PAYLOAD_MAX_RECORD_LEN_S * (1000 / PAYLOAD_MAIN_POLL_PERIOD_MS)
 
 /**
  * @brief Payload logging sample
@@ -69,6 +83,9 @@ struct payload_page
 	struct payload_sample samples[PAYLOAD_SAMPLES_PER_PAGE];
 } __attribute__((packed));
 
+/**
+ * @brief User LED state enum
+ */
 enum led_state_e
 {
 	LED_ON,

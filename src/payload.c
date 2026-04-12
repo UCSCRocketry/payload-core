@@ -19,32 +19,32 @@
 
 _Static_assert(sizeof(struct payload_page) == 256, "payload_page must be exactly 256 bytes");
 
-extern SPI_HandleTypeDef hspi1; // For SPIF
-extern SPI_HandleTypeDef hspi3; // For BMP
-extern SPI_HandleTypeDef hspi4; // For IMU
+extern SPI_HandleTypeDef hspi1; // SPI peripheral for SPIF
+extern SPI_HandleTypeDef hspi3; // SPI peripheral for Altimeter/BMP
+extern SPI_HandleTypeDef hspi4; // SPI peripheral for IMU
 
-extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim1; // Timer 1 peripheral
 
-static SPIF_HandleTypeDef spif;
+static SPIF_HandleTypeDef hspif; // SPI flash device
 
-static enum led_state_e led_state = LED_OFF;
+extern enum led_state_e led_state;
 
 void payload_run(void)
 {
 	// Initialize flash
-	if (!SPIF_Init(&spif, &hspi1, SPI1_CS_GPIO_Port, SPI1_CS_Pin))
+	if (!SPIF_Init(&hspif, &hspi1, SPI1_CS_GPIO_Port, SPI1_CS_Pin))
 	{
 		LOG_ERR("Flash init failed");
 		Error_Handler();
 	}
-	LOG_INF("Flash: %lu pages (%lu KiB)", spif.PageCnt, spif.PageCnt / 4);
+	LOG_INF("Flash: %lu pages (%lu KiB)", hspif.PageCnt, hspif.PageCnt / 4);
 
-	// Button is dump sensitive
+	// Press button to dump
 	if (button_pressed())
 	{
 		LOG_INF("Startup button held - dumping flash to SD card...");
 		led_state = LED_BLINK_FAST;
-		if (!dump_and_format_flash(&spif))
+		if (!dump_and_format_flash(&hspif))
 		{
 			LOG_INF("Dump OK");
 		}
@@ -55,14 +55,14 @@ void payload_run(void)
 		led_state = LED_OFF;
 	}
 
-	// Wait 10 seconds as a buffer between dump sensitive and arm sensitive button
-	LOG_INF("Waiting 10 s...");
-	HAL_Delay(10000);
+	// Wait 5 seconds as a buffer between dump sensitive and arm sensitive button
+	LOG_INF("Waiting 5 s...");
+	HAL_Delay(5000);
 
-	// Button is arm sensitive
+	// Press button to arm
 	while (!button_pressed())
 	{
-		HAL_Delay(50);
+		HAL_Delay(10);
 	}
 	LOG_INF("Armed.");
 	led_state = LED_BLINK_SLOW;
@@ -74,9 +74,9 @@ void payload_run(void)
 	}
 
 	// Take baseline pressure
-	LOG_INF("Sampling baseline pressure (%d readings)...", PAYLOAD_BASELINE_SAMPLES);
+	LOG_DBG("Sampling baseline pressure (%d readings)...", PAYLOAD_BASELINE_SAMPLES);
 	float baseline = sensor_io_press_baseline(PAYLOAD_BASELINE_SAMPLES);
-	LOG_INF("Baseline: %ld.%03ld kPa", (int32_t) baseline,
+	LOG_DBG("Baseline: %ld.%03ld kPa", (int32_t) baseline,
 	        (int32_t) ((baseline - (int32_t) baseline) * 1000.0f));
 
 	LOG_INF("Pre-launch buffer active. Threshold: %d m", (int) PAYLOAD_LAUNCH_ALT_THRESHOLD_M);
@@ -87,13 +87,19 @@ void payload_run(void)
 	while (1)
 	{
 		struct payload_sample s = { 0 };
-		if (sensor_io_sample(&s) == 0)
+		if (!sensor_io_sample(&s))
 		{
 			prebuf_push(&pb, &s);
 
 			struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
 			float alt = bmp388_calc_altitude(baseline, sensor_value_to_float(&cur));
-			if (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M || button_pressed())
+
+#ifdef __PAYLOAD_TESTING__
+			int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M || button_pressed());
+#else
+			int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M);
+#endif
+			if (launched)
 			{
 				LOG_INF("Launch detected! Alt ~%d m", (int) alt);
 				break;
@@ -102,7 +108,7 @@ void payload_run(void)
 		HAL_Delay(PAYLOAD_PREBUF_POLL_PERIOD_MS);
 	}
 
-	uint32_t page_idx = prebuf_flush(&pb, &spif);
+	uint32_t page_idx = prebuf_flush(&pb, &hspif);
 
 #ifndef LOG_NODEBUG
     for (int i = 0; i < PREBUF_DEPTH; i++)
@@ -122,7 +128,7 @@ void payload_run(void)
 
     // Regular Recording Loop
     led_state = LED_ON;
-	LOG_INF("Recording: page %lu / %lu", page_idx, spif.PageCnt);
+	LOG_DBG("Recording: page %lu / %lu", page_idx, spif.PageCnt);
 	{
 		struct payload_page page;
         struct payload_sample s = { 0 };
@@ -130,7 +136,7 @@ void payload_run(void)
 
 		memset(&page, 0xFF, sizeof(page));
 
-		while (page_idx < spif.PageCnt)
+		while (page_idx < hspif.PageCnt)
 		{	
 			if (sensor_io_sample(&s) == 0)
 			{
@@ -138,7 +144,7 @@ void payload_run(void)
 
 				if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE)
 				{
-					if (!SPIF_WritePage(&spif, page_idx, (uint8_t *) &page, sizeof(page), 0))
+					if (!SPIF_WritePage(&hspif, page_idx, (uint8_t *) &page, sizeof(page), 0))
 					{
 						LOG_ERR("Flash write error at page %lu", page_idx);
 					}
@@ -151,7 +157,7 @@ void payload_run(void)
 		}
 	}
 
-	LOG_INF("Flash full (%lu pages). Entering low-power stop mode.", spif.PageCnt);
+	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", hspif.PageCnt);
 	led_state = LED_OFF;
     HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
 	HAL_SuspendTick();
