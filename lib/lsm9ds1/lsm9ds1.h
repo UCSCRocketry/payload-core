@@ -37,7 +37,7 @@
 /** @brief GPIO port for magnetometer chip select */
 #define LSM9DS1_MAG_CS_GPIO_BUS GPIOA
 /** @brief GPIO pin for IMU chip select */
-#define LSM9DS1_IMU_CS_GPIO_PIN GPIO_PIN_1
+#define LSM9DS1_IMU_CS_GPIO_PIN GPIO_PIN_6
 /** @brief GPIO pin for magnetometer chip select */
 #define LSM9DS1_MAG_CS_GPIO_PIN GPIO_PIN_0
 
