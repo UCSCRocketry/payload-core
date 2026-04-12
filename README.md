@@ -11,6 +11,7 @@ The pin assignments, and system interface assignments are as follows:
 | Component | Model | Interface | Description | Pins |
 |-----------|-------|-----------|-------------|------|
 | Fin Servos 1/2 | FS5106B-FB | PWM (TIM1_CH1/2) | Active fin control | CH1(PA8), CH2(PA9)
+| Fin Servos 1/2 | FS5106B-FB | ADC1 (CH8/9) | Feedback | CH8(PB0), CH9(PB1)
 | SPI Flash | Various | SPI1 | Onboard storage for inflight logging | SCK(PA5), MISO(PA6), MOSI(PA7)
 | SD Card | - | SPI2 | To facilitate data recovery | SCK(PB10), MISO(PB14), MOSI(PB15)
 | Altimeter | BMP388 | SPI3 | Barometric pressure/altitude sensing | SCK(PB12), MISO(PB4), MOSI(PB5)
@@ -29,8 +30,8 @@ Additionally, for the pins setup as GPIO, the definitions are as follows:
 |-----|------------|-----------|
 | PB2 | SPI2 CS | Output |
 | PA4 | SPI1 CS | Output |
-| PB0 | SPI3 CS | Output |
-| PB1 | SPI4 CS IMU | Output |
+| PB3 | SPI3 CS | Output |
+| PB6 | SPI4 CS IMU | Output |
 | PA0 | Onboard KEY | Input |
 | PC13 | Onboard LED (Blackpill) | Output |
 
