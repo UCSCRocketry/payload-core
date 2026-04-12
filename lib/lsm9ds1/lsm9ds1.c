@@ -824,7 +824,7 @@ int lsm9ds1_mag_range_set(const struct lsm9ds1_mag_device *dev, int32_t range)
  */
 static int lsm9ds1_mag_freq_to_odr_val(uint16_t freq)
 {
-	for (int i = 0; i < ARRAY_SIZE(lsm9ds1_mag_odr_map); i++) {
+	for (unsigned int i = 0; i < ARRAY_SIZE(lsm9ds1_mag_odr_map); i++) {
 		if (freq <= lsm9ds1_mag_odr_map[i]) {
 			return i;
 		}

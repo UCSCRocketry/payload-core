@@ -21,6 +21,7 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive nmuber to identify the drive */
 )
 {
+	(void) pdrv;
 	return 0;
 }
 
@@ -34,6 +35,7 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber to identify the drive */
 )
 {
+	(void) pdrv;
 	return 0;
 }
 
@@ -50,6 +52,8 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
+	(void) pdrv;
+
     int ret;
 	struct sdhc_data data = {
 		.block_addr = sector,
@@ -83,6 +87,8 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
+	(void) pdrv;
+
     int ret;
 	struct sdhc_data data = {
 		.block_addr = sector,
@@ -114,6 +120,8 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
+	(void) buff;
+	(void) pdrv;
 	if (cmd == CTRL_SYNC)
     {
         return RES_OK;
