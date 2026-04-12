@@ -14,10 +14,10 @@
 #include "../lib/common/errno.h"
 #include "stm32f4xx_hal.h"
 
-extern CRC_HandleTypeDef hcrc;
-extern SPI_HandleTypeDef hspi2;
+extern CRC_HandleTypeDef hcrc; // CRC Module
+extern SPI_HandleTypeDef hspi2; // SPI peripheral for SD Card
 
-struct sdhc_spi_device sd_dev;
+struct sdhc_spi_device sd_dev; // SD Card device
 
 /**
  * @brief Dumps flash content to SD card
@@ -38,11 +38,10 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 		.spi_max_freq = 20000000,
 	};
 	static struct sdhc_spi_data sd_dat = { 0 };
-
-	static FATFS fs;
-
 	sd_dev.config = &sd_cfg;
 	sd_dev.data = &sd_dat;
+
+	static FATFS fs;
 
 	if (sdhc_init(&sd_dev))
 	{
