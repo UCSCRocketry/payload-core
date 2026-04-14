@@ -40,6 +40,20 @@
 // Maximum number of samples recorded after launch detection
 #define PAYLOAD_MAX_SAMPLES_NUM		PAYLOAD_MAX_RECORD_LEN_S * (1000 / PAYLOAD_MAIN_POLL_PERIOD_MS)
 
+// --- Ground landing detection parameters ---
+
+// Altitude must drop this far below peak to declare descent (prevents apogee oscillation false triggers)
+#define PAYLOAD_APOGEE_MARGIN_M		50.0f
+
+// Altitude (m) at or below which the payload is considered "near ground"
+#define PAYLOAD_LAND_ALT_THRESHOLD_M	30.0f
+
+// Duration (seconds) that altitude must stay below land threshold to confirm landing
+#define PAYLOAD_LAND_HOLD_S		10
+
+// Number of consecutive samples below land threshold required (derived from hold time and poll period)
+#define PAYLOAD_LAND_HOLD_SAMPLES	(PAYLOAD_LAND_HOLD_S * (1000 / PAYLOAD_MAIN_POLL_PERIOD_MS))
+
 /**
  * @brief Payload logging sample
  */
@@ -92,6 +106,22 @@ enum led_state_e
 	LED_BLINK_SLOW,
 	LED_BLINK_FAST,
 	LED_OFF,
+};
+
+/**
+ * @brief Flight phase state machine states for ground landing detection.
+ *
+ * ARMED      -> Pre-launch; waiting for altitude to exceed launch threshold.
+ * ASCENDING  -> Launch detected; tracking peak altitude.
+ * DESCENDING -> Apogee passed; monitoring for sustained low altitude.
+ * LANDED     -> Ground contact confirmed; recording stops.
+ */
+enum flight_phase_e
+{
+	FLIGHT_ARMED,
+	FLIGHT_ASCENDING,
+	FLIGHT_DESCENDING,
+	FLIGHT_LANDED,
 };
 
 /**
