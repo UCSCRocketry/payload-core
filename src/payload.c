@@ -129,13 +129,18 @@ void payload_run(void)
     }
 #endif
 
-    // Regular Recording Loop
+    // Regular Recording Loop with ground landing detection
     led_state = LED_ON;
-	LOG_DBG("Recording: page %lu / %lu", page_idx, spif.PageCnt);
+	LOG_DBG("Recording: page %lu / %lu", page_idx, hspif.PageCnt);
 	{
 		struct payload_page page;
         struct payload_sample s = { 0 };
 		uint32_t page_sample_idx = 0;
+
+		// Flight phase state machine — starts ASCENDING since launch was just detected
+		enum flight_phase_e phase = FLIGHT_ASCENDING;
+		float peak_alt = PAYLOAD_LAUNCH_ALT_THRESHOLD_M; // at least this high at launch
+		uint32_t land_hold_count = 0;
 
 		memset(&page, 0xFF, sizeof(page));
 
@@ -155,12 +160,61 @@ void payload_run(void)
 					page_sample_idx = 0;
 					memset(&page, 0xFF, sizeof(page));
 				}
+
+				// --- Ground landing detection state machine ---
+				struct sensor_value cur_press = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
+				float alt = bmp388_calc_altitude(baseline, sensor_value_to_float(&cur_press));
+
+				switch (phase)
+				{
+				case FLIGHT_ASCENDING:
+					if (alt > peak_alt)
+					{
+						peak_alt = alt;
+					}
+					if (alt < peak_alt - PAYLOAD_APOGEE_MARGIN_M)
+					{
+						phase = FLIGHT_DESCENDING;
+						LOG_INF("Apogee detected. Peak ~%d m, current ~%d m", (int) peak_alt, (int) alt);
+					}
+					break;
+
+				case FLIGHT_DESCENDING:
+					if (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M)
+					{
+						land_hold_count++;
+					}
+					else
+					{
+						land_hold_count = 0;
+					}
+					if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES)
+					{
+						phase = FLIGHT_LANDED;
+						LOG_INF("Landing detected! Alt ~%d m, held for %lu samples", (int) alt, land_hold_count);
+					}
+					break;
+
+				default:
+					break;
+				}
+
+				if (phase == FLIGHT_LANDED)
+				{
+					// Flush any partial page before stopping
+					if (page_sample_idx > 0)
+					{
+						SPIF_WritePage(&hspif, page_idx, (uint8_t *) &page, sizeof(page), 0);
+						page_idx++;
+					}
+					break;
+				}
 			}
 			HAL_Delay(PAYLOAD_MAIN_POLL_PERIOD_MS);
 		}
 	}
 
-	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", hspif.PageCnt);
+	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", page_idx);
 	led_state = LED_OFF;
     HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
 	HAL_SuspendTick();
