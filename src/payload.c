@@ -24,6 +24,9 @@ extern SPI_HandleTypeDef hspi3; // SPI peripheral for Altimeter/BMP
 extern SPI_HandleTypeDef hspi4; // SPI peripheral for IMU
 
 extern TIM_HandleTypeDef htim1; // Timer 1 peripheral
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim4;
 
 static SPIF_HandleTypeDef hspif; // SPI flash device
 
@@ -168,7 +171,7 @@ void payload_run(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim == &htim1)
+    if (htim == &htim2)
     {
 		switch (led_state)
 		{
