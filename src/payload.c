@@ -229,7 +229,7 @@ void payload_run(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim == &htim2)
+    if (htim == &htim3)
     {
 		switch (led_state)
 		{
