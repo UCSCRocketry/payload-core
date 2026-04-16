@@ -172,7 +172,11 @@ void payload_run(void)
 					{
 						peak_alt = alt;
 					}
-					if (alt < peak_alt - PAYLOAD_APOGEE_MARGIN_M)
+					// Only detect apogee if we actually ascended past the launch threshold.
+					// This prevents false landing detection when launch is triggered by
+					// button press in __PAYLOAD_TESTING__ mode while on the bench.
+					if (peak_alt > PAYLOAD_LAUNCH_ALT_THRESHOLD_M
+					    && alt < peak_alt - PAYLOAD_APOGEE_MARGIN_M)
 					{
 						phase = FLIGHT_DESCENDING;
 						LOG_INF("Apogee detected. Peak ~%d m, current ~%d m", (int) peak_alt, (int) alt);
