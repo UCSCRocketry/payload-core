@@ -19,6 +19,9 @@ The pin assignments, and system interface assignments are as follows:
 | - | - | UART2 | Serial output | TX(PA2), RX(PA3)
 | - | - | RCC | Onboard LSE/HSE | OSC32_IN(PC14), OSC32_OUT(PC15), OSC_IN(PH0), OSC_OUT(PH1)
 | - | - | SWD | Serial Wire Debug port | SWCLK(PA14), SWDIO(PA13)
+| - | - | TIM2 | System Tick | - 
+| - | - | TIM3 | Blink Tick | - 
+| - | - | TIM4 | Enabled, Reserved | - 
 
 
 The pin configuration is set up as follows:
