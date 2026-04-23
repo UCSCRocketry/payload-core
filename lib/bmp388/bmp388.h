@@ -148,7 +148,7 @@ struct bmp388_device
  * @brief Compute altitude from reference and static pressure (kPa).
  * @param press_0    Reference pressure at sea level (kPa)
  * @param press_static Static pressure (kPa)
- * @return Altitude in meters
+ * @return Altitude in feet
  */
 static inline float bmp388_calc_altitude(float press_0, float press_static)
 {

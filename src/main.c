@@ -58,16 +58,17 @@ int main(void)
 	MX_SPI2_Init();
 	MX_SPI3_Init();
 	MX_RTC_Init();
-	MX_TIM1_Init();
 	MX_USART2_UART_Init();
 	MX_SPI4_Init();
 	MX_SPI1_Init();
 	MX_CRC_Init();
 	MX_ADC1_Init();
+	MX_TIM1_Init();
 	MX_TIM2_Init();
 	MX_TIM3_Init();
 	MX_TIM4_Init();
 	
+	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_Base_Start_IT(&htim3);
 
 	log_init(&huart2);
@@ -482,9 +483,11 @@ static void MX_TIM2_Init(void)
 
 	/* USER CODE END TIM2_Init 1 */
 	htim2.Instance = TIM2;
-	htim2.Init.Prescaler = 258;
-	htim2.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-	htim2.Init.Period = 65535;
+
+	htim2.Init.Prescaler = 9999;
+	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim2.Init.Period = (PAYLOAD_MAIN_POLL_PERIOD_MS * 10) - 1;
+	
 	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
 	if (HAL_TIM_Base_Init(&htim2) != HAL_OK)

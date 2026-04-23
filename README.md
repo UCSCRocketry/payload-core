@@ -14,7 +14,7 @@ The pin assignments, and system interface assignments are as follows:
 | Fin Servos 1/2 | FS5106B-FB | ADC1 (CH8/9) | Feedback | CH8(PB0), CH9(PB1)
 | SPI Flash | Various | SPI1 | Onboard storage for inflight logging | SCK(PA5), MISO(PA6), MOSI(PA7)
 | SD Card | - | SPI2 | To facilitate data recovery | SCK(PB10), MISO(PB14), MOSI(PB15)
-| Altimeter | BMP388 | SPI3 | Barometric pressure/altitude sensing | SCK(PB12), MISO(PB4), MOSI(PB5)
+| Altimeter | BMP388 | SPI3 | Barometric pressure/altitude sensing (altitude in feet) | SCK(PB12), MISO(PB4), MOSI(PB5)
 | IMU | LSM9DS1 | SPI4 | 6-DOF inertial measurement (Mag disabled) | SCK(PB13), MISO(PA11), MOSI(PA1)
 | - | - | UART2 | Serial output | TX(PA2), RX(PA3)
 | - | - | RCC | Onboard LSE/HSE | OSC32_IN(PC14), OSC32_OUT(PC15), OSC_IN(PH0), OSC_OUT(PH1)

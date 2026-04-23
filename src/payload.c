@@ -32,6 +32,21 @@ static SPIF_HandleTypeDef hspif; // SPI flash device
 
 extern enum led_state_e led_state;
 
+static bool is_initialized = false;
+
+static volatile enum {
+    PAYLOAD_STATE_INIT = 0,
+    PAYLOAD_STATE_PRELAUNCH,
+    PAYLOAD_STATE_RECORDING,
+    PAYLOAD_STATE_DONE
+} payload_state = PAYLOAD_STATE_INIT;
+
+struct prebuf pb = { 0 };
+static float baseline_pressure = 0.0f;
+static uint32_t current_page_idx = 0;
+static struct payload_page recording_page;
+static uint32_t page_sample_idx = 0;
+
 void payload_run(void)
 {
 	// Initialize flash
@@ -75,156 +90,18 @@ void payload_run(void)
 	{
 		Error_Handler();
 	}
+	is_initialized = true;
 
 	// Take baseline pressure
 	LOG_DBG("Sampling baseline pressure (%d readings)...", PAYLOAD_BASELINE_SAMPLES);
-	float baseline = sensor_io_press_baseline(PAYLOAD_BASELINE_SAMPLES);
-	LOG_DBG("Baseline: %ld.%03ld kPa", (int32_t) baseline,
-	        (int32_t) ((baseline - (int32_t) baseline) * 1000.0f));
+	baseline_pressure = sensor_io_press_baseline(PAYLOAD_BASELINE_SAMPLES);
+	LOG_DBG("Baseline: %ld.%03ld kPa", (int32_t) baseline_pressure,
+	        (int32_t) ((baseline_pressure - (int32_t) baseline_pressure) * 1000.0f));
 
 	LOG_INF("Pre-launch buffer active. Threshold: %d m", (int) PAYLOAD_LAUNCH_ALT_THRESHOLD_M);
-
-	struct prebuf pb = { 0 };
-
-    // Logging to prebuffer until launch detected
-	while (1)
-	{
-		struct payload_sample s = { 0 };
-		if (!sensor_io_sample(&s))
-		{
-			prebuf_push(&pb, &s);
-
-			struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
-			float alt = bmp388_calc_altitude(baseline, sensor_value_to_float(&cur));
-
-#ifdef __PAYLOAD_TESTING__
-			int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M || button_pressed());
-#else
-			int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M);
-#endif
-			if (launched)
-			{
-				LOG_INF("Launch detected! Alt ~%d m", (int) alt);
-				break;
-			}
-		}
-		HAL_Delay(PAYLOAD_PREBUF_POLL_PERIOD_MS);
-	}
-
-	uint32_t page_idx = prebuf_flush(&pb, &hspif);
-
-#ifndef LOG_NODEBUG
-    for (int i = 0; i < PREBUF_DEPTH; i++)
-    {
-        struct sensor_value cur = { .val1 = pb.prebuf[i].pressure_v1, .val2 = pb.prebuf[i].pressure_v2 };
-        struct sensor_value accelx = {.val1 = pb.prebuf[i].accel_x_v1, .val2 = pb.prebuf[i].accel_x_v2};
-        struct sensor_value accely = {.val1 = pb.prebuf[i].accel_y_v1, .val2 = pb.prebuf[i].accel_y_v2};
-        struct sensor_value accelz = {.val1 = pb.prebuf[i].accel_z_v1, .val2 = pb.prebuf[i].accel_z_v2};
-        struct sensor_value gyrox = {.val1 = pb.prebuf[i].gyro_x_v1, .val2 = pb.prebuf[i].gyro_x_v2};
-        struct sensor_value gyroy = {.val1 = pb.prebuf[i].gyro_y_v1, .val2 = pb.prebuf[i].gyro_y_v2};
-        struct sensor_value gyroz = {.val1 = pb.prebuf[i].gyro_z_v1, .val2 = pb.prebuf[i].gyro_z_v2};
-        LOG_INF("Prebuf log: [%lu], (%f), (%f, %f, %f), (%f, %f, %f)", pb.prebuf[i].timestamp_ms,
-            sensor_value_to_float(&cur), sensor_value_to_float(&accelx), sensor_value_to_float(&accely), sensor_value_to_float(&accelz),
-            sensor_value_to_float(&gyrox), sensor_value_to_float(&gyroy), sensor_value_to_float(&gyroz));
-    }
-#endif
-
-    // Regular Recording Loop with ground landing detection
-    led_state = LED_ON;
-	LOG_DBG("Recording: page %lu / %lu", page_idx, hspif.PageCnt);
-	{
-		struct payload_page page;
-        struct payload_sample s = { 0 };
-		uint32_t page_sample_idx = 0;
-
-		// Flight phase state machine — starts ASCENDING since launch was just detected
-		enum flight_phase_e phase = FLIGHT_ASCENDING;
-		float peak_alt = PAYLOAD_LAUNCH_ALT_THRESHOLD_M; // at least this high at launch
-		uint32_t land_hold_count = 0;
-
-		memset(&page, 0xFF, sizeof(page));
-
-		while (page_idx < hspif.PageCnt)
-		{	
-			if (sensor_io_sample(&s) == 0)
-			{
-				page.samples[page_sample_idx++] = s;
-
-				if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE)
-				{
-					if (!SPIF_WritePage(&hspif, page_idx, (uint8_t *) &page, sizeof(page), 0))
-					{
-						LOG_ERR("Flash write error at page %lu", page_idx);
-					}
-					page_idx++;
-					page_sample_idx = 0;
-					memset(&page, 0xFF, sizeof(page));
-				}
-
-				// --- Ground landing detection state machine ---
-				struct sensor_value cur_press = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
-				float alt = bmp388_calc_altitude(baseline, sensor_value_to_float(&cur_press));
-
-				switch (phase)
-				{
-				case FLIGHT_ASCENDING:
-					if (alt > peak_alt)
-					{
-						peak_alt = alt;
-					}
-					// Only detect apogee if we actually ascended past the launch threshold.
-					// This prevents false landing detection when launch is triggered by
-					// button press in __PAYLOAD_TESTING__ mode while on the bench.
-					if (peak_alt > PAYLOAD_LAUNCH_ALT_THRESHOLD_M
-					    && alt < peak_alt - PAYLOAD_APOGEE_MARGIN_M)
-					{
-						phase = FLIGHT_DESCENDING;
-						LOG_INF("Apogee detected. Peak ~%d m, current ~%d m", (int) peak_alt, (int) alt);
-					}
-					break;
-
-				case FLIGHT_DESCENDING:
-					if (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M)
-					{
-						land_hold_count++;
-					}
-					else
-					{
-						land_hold_count = 0;
-					}
-					if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES)
-					{
-						phase = FLIGHT_LANDED;
-						LOG_INF("Landing detected! Alt ~%d m, held for %lu samples", (int) alt, land_hold_count);
-					}
-					break;
-
-				default:
-					break;
-				}
-
-				if (phase == FLIGHT_LANDED)
-				{
-					// Flush any partial page before stopping
-					if (page_sample_idx > 0)
-					{
-						SPIF_WritePage(&hspif, page_idx, (uint8_t *) &page, sizeof(page), 0);
-						page_idx++;
-					}
-					break;
-				}
-			}
-			HAL_Delay(PAYLOAD_MAIN_POLL_PERIOD_MS);
-		}
-	}
-
-	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", page_idx);
-	led_state = LED_OFF;
-    HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
-	HAL_SuspendTick();
-	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
-
-	while (1);
+	
+	payload_state = PAYLOAD_STATE_PRELAUNCH;
+    return;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -249,5 +126,62 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				break;
 		}
         
-    }
+    } else if (htim == &htim2) {
+		if (is_initialized) {
+            if (payload_state == PAYLOAD_STATE_PRELAUNCH) {
+				LOG_INF("Prelaunch state");
+
+                struct payload_sample s = { 0 };
+                if (sensor_io_sample(&s) == 0) {
+                    prebuf_push(&pb, &s);
+                    struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
+                    float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
+
+#ifdef __PAYLOAD_TESTING__
+                    int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M || (HAL_GPIO_ReadPin(PAYLOAD_BTN_GPIO_PORT, PAYLOAD_BTN_GPIO_PIN) == GPIO_PIN_RESET));
+#else
+                    int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M);
+#endif
+                    if (launched) {
+                        LOG_INF("Launch detected! Alt ~%d m", (int) alt);
+                        current_page_idx = prebuf_flush(&pb, &hspif);
+
+                        led_state = LED_ON;
+                        LOG_DBG("Recording: starting at page %lu / %lu", current_page_idx, hspif.PageCnt);
+                        memset(&recording_page, 0xFF, sizeof(recording_page));
+                        page_sample_idx = 0;
+                        payload_state = PAYLOAD_STATE_RECORDING;
+                    }
+                }
+            } else if (payload_state == PAYLOAD_STATE_RECORDING) {
+				LOG_INF("Recording state");
+				
+                if (current_page_idx < hspif.PageCnt) {
+					LOG_INF("Recording page %lu", current_page_idx);
+					
+                    struct payload_sample s = { 0 };
+                    if (sensor_io_sample(&s) == 0) {
+                        recording_page.samples[page_sample_idx++] = s;
+
+                        if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE) {
+                            if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *)&recording_page, sizeof(recording_page), 0)) {
+                                LOG_ERR("Flash write error at page %lu", current_page_idx);
+                            }
+                            current_page_idx++;
+                            page_sample_idx = 0;
+                            memset(&recording_page, 0xFF, sizeof(recording_page));
+                        }
+                    }
+                } else {
+                    LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", hspif.PageCnt);
+                    led_state = LED_OFF;
+                    HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+                    payload_state = PAYLOAD_STATE_DONE;
+
+                    HAL_SuspendTick();
+                    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+                }
+            }
+		}
+	}
 }
