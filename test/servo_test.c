@@ -2,6 +2,7 @@
 #include "main.h"
 #include "payload.h"
 #include "log.h"
+#include "stm32f4xx_hal_adc.h"
 #include "stm32f4xx_hal_gpio.h"
 #include "stm32f4xx_hal_spi.h"
 #include "stm32f4xx_hal_tim.h"
@@ -69,14 +70,16 @@ int main(void)
 	MX_TIM2_Init();
 	MX_TIM3_Init();
 	MX_TIM4_Init();
-	
+
 	HAL_TIM_Base_Start_IT(&htim3);
 
 	log_init(&huart2);
-    
+
 	struct servo_device servo_dev1 = { 0 };
 	servo_dev1.htim = &htim1;
-	servo_dev1.channel = TIM_CHANNEL_1;
+	servo_dev1.hadc = &hadc1;
+	servo_dev1.tim_channel = TIM_CHANNEL_1;
+	servo_dev1.adc_channel = ADC_CHANNEL_8;
 	servo_dev1.period_us = 20000;
 	servo_dev1.pwm_min_us = 500;
 	servo_dev1.pwm_max_us = 2500;
@@ -89,7 +92,8 @@ int main(void)
 	}
 
 	struct servo_device servo_dev2 = servo_dev1;
-	servo_dev2.channel = TIM_CHANNEL_2;
+	servo_dev2.adc_channel = ADC_CHANNEL_9;
+	servo_dev2.tim_channel = TIM_CHANNEL_2;
 	if (servo_init(&servo_dev2))
 	{
 		LOG_ERR("Error initializing servo device 2 (TIM1-CH2).");
@@ -107,17 +111,29 @@ int main(void)
 
 	while (1)
 	{
-		HAL_Delay(1000);
-		servo_set(&servo_dev1, 90.0);
-		servo_set(&servo_dev2, 10.0);
-		HAL_Delay(1000);
-		servo_set(&servo_dev2, -45.0);
-		servo_set(&servo_dev1, -10.0);
-	}
+		float servo1_pos, servo2_pos;
+		HAL_Delay(500);
+		servo_set(&servo_dev1, 45.0);
+		servo_set(&servo_dev2, 45.0);
+		servo_read(&servo_dev1, &servo1_pos);
+		servo_read(&servo_dev2, &servo2_pos);
+		LOG_INF("Servo 1 pos: %f", servo1_pos);
+		LOG_INF("Servo 2 pos: %f", servo2_pos);
 
-	// We should not get here
-	while (1)
-		;
+
+		HAL_Delay(500);
+		servo_set(&servo_dev2, -45.0);
+		servo_set(&servo_dev1, -45.0);
+		servo_read(&servo_dev1, &servo1_pos);
+		servo_read(&servo_dev2, &servo2_pos);
+		LOG_INF("Servo 1 pos: %f", servo1_pos);
+		LOG_INF("Servo 2 pos: %f", servo2_pos);
+	}
+	
+
+// We should not get here
+while (1)
+	;
 }
 
 /**
@@ -190,13 +206,13 @@ static void MX_ADC1_Init(void)
 	hadc1.Instance = ADC1;
 	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
 	hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-	hadc1.Init.ScanConvMode = DISABLE;
+	hadc1.Init.ScanConvMode = ENABLE;
 	hadc1.Init.ContinuousConvMode = DISABLE;
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
 	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
 	hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
 	hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-	hadc1.Init.NbrOfConversion = 1;
+	hadc1.Init.NbrOfConversion = 2;
 	hadc1.Init.DMAContinuousRequests = DISABLE;
 	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -209,7 +225,17 @@ static void MX_ADC1_Init(void)
 	 */
 	sConfig.Channel = ADC_CHANNEL_8;
 	sConfig.Rank = 1;
-	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	/** Configure for the selected ADC regular channel its corresponding rank in the sequencer and
+	 * its sample time.
+	 */
+	sConfig.Channel = ADC_CHANNEL_9;
+	sConfig.Rank = 2;
 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
 	{
 		Error_Handler();
@@ -741,7 +767,7 @@ void Error_Handler(void)
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	led_state = LED_OFF;
-	
+
 	while (1)
 	{
 		HAL_Delay(500);
@@ -769,7 +795,6 @@ void Error_Handler(void)
 			led_state = LED_OFF;
 			HAL_Delay(200);
 		}
-
 	}
 	/* USER CODE END Error_Handler_Debug */
 }

@@ -13,9 +13,11 @@ struct servo_device
     //
     //! Not tested on any timer other than TIM1 (Adv Ctl)
     TIM_HandleTypeDef *htim;
+    ADC_HandleTypeDef *hadc;
 
     // For channel N, TIM_CHANNEL_N
-    uint32_t    channel; 
+    uint32_t    tim_channel; 
+    uint32_t    adc_channel;
 
     uint32_t    period_us; // Signal period
     uint32_t    pwm_min_us; // Minimum pulse width
@@ -34,5 +36,6 @@ int servo_init(struct servo_device *dev);
 int servo_start(struct servo_device *dev);
 int servo_stop(struct servo_device *dev);
 int servo_set(struct servo_device *dev, const float pos_deg);
+int servo_read(struct servo_device *dev, float *servo_pos);
 
 #endif // __SERVO_H__

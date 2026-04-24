@@ -47,7 +47,7 @@ int servo_init(struct servo_device *dev)
 	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 	sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
 	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	if (HAL_TIM_PWM_ConfigChannel(htim, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+	if (HAL_TIM_PWM_ConfigChannel(htim, &sConfigOC, dev->tim_channel) != HAL_OK)
 	{
 		return -1;
 	}
@@ -58,13 +58,13 @@ int servo_init(struct servo_device *dev)
 int servo_start(struct servo_device *dev)
 {
 	TIM_HandleTypeDef *htim = dev->htim;
-	return HAL_TIM_PWM_Start(htim, dev->channel);
+	return HAL_TIM_PWM_Start(htim, dev->tim_channel);
 }
 
 int servo_stop(struct servo_device *dev)
 {
 	TIM_HandleTypeDef *htim = dev->htim;
-	return HAL_TIM_PWM_Stop(htim, dev->channel);
+	return HAL_TIM_PWM_Stop(htim, dev->tim_channel);
 }
 
 int servo_set(struct servo_device *dev, const float pos_deg)
@@ -90,7 +90,32 @@ int servo_set(struct servo_device *dev, const float pos_deg)
 	// Change timer compare register
 	uint32_t period = dev->htim->Init.Period;
 	uint32_t pulse = (uint32_t) (pwm_us * (float) period / (float) dev->period_us);
-	__HAL_TIM_SET_COMPARE(dev->htim, dev->channel, pulse);
+	__HAL_TIM_SET_COMPARE(dev->htim, dev->tim_channel, pulse);
+
+	return 0;
+}
+
+int servo_read(struct servo_device *dev, float *servo_pos)
+{
+	/* Configure channel */
+	ADC_ChannelConfTypeDef sConfig = { 0 };
+	sConfig.Channel = dev->adc_channel;
+	sConfig.Rank = 1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+	sConfig.Offset = 0;
+	if (HAL_ADC_ConfigChannel(dev->hadc, &sConfig) != HAL_OK)
+	{
+		return -1;
+	}
+
+	/* Convert the Channel */
+	HAL_ADC_Start(dev->hadc);
+	HAL_ADC_PollForConversion(dev->hadc, 100);
+	uint16_t adcval = HAL_ADC_GetValue(dev->hadc);
+	HAL_ADC_Stop(dev->hadc);
+	// max val 3835
+	// min val 182
+	*servo_pos = 180.0 * (((float) adcval - 182.0) / (3835.0 - 182.0));
 
 	return 0;
 }
