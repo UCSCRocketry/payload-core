@@ -211,44 +211,43 @@ void payload_handle_log(void)
             } else if (payload_state == PAYLOAD_STATE_DESCEND) {
                 if (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M) {
                     land_hold_count++;
-                    if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES) {
-                        LOG_INF("Landing detected!");
-                        
-                        if (page_sample_idx > 0) {
-                            if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *)&recording_page, sizeof(recording_page), 0)) {
-                                LOG_ERR("Flash write error at page %lu", current_page_idx);
-                            }
-                            current_page_idx++;
-                        }
-                        
-                        LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", current_page_idx);
-                        led_state = LED_OFF;
-                        HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
-                        payload_state = PAYLOAD_STATE_DONE;
-    
-                        HAL_SuspendTick();
-                        HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
-                    }
                 } else {
                     land_hold_count = 0;
                 }
-            }
+
+                if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES) {
+                    LOG_INF("Landing detected!");
                     
+                    if (page_sample_idx > 0) {
+                        if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *)&recording_page, sizeof(recording_page), 0)) {
+                            LOG_ERR("Flash write error at page %lu", current_page_idx);
+                        }
+                        
+                        current_page_idx++;
+                    }
+                    
+                    payload_terminate_recording();
+                }
+            }
 		}
 	}
 	else
 	{
-		LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.",
-		        hspif.PageCnt);
-		led_state = LED_OFF;
-		HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
-		payload_state = PAYLOAD_STATE_DONE;
-
-		HAL_SuspendTick();
-		HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+		payload_terminate_recording();
 	}
 
 	return;
+}
+
+void payload_terminate_recording(void)
+{
+    LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", current_page_idx);
+    led_state = LED_OFF;
+    HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+    payload_state = PAYLOAD_STATE_DONE;
+
+    HAL_SuspendTick();
+    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 }
 
 void payload_handle_servo(void)
