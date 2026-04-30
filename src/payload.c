@@ -43,6 +43,8 @@ static float baseline_pressure = 0.0f;
 static uint32_t current_page_idx = 0;
 static struct payload_page recording_page;
 static uint32_t page_sample_idx = 0;
+static float peak_altitude = 0.0f;
+static uint32_t land_hold_count = 0;
 
 // Sets up the payload system
 void payload_run(void)
@@ -162,7 +164,7 @@ void payload_handle_prelog(void)
 			LOG_DBG("Recording: starting at page %lu / %lu", current_page_idx, hspif.PageCnt);
 			memset(&recording_page, 0xFF, sizeof(recording_page));
 			page_sample_idx = 0;
-			payload_state = PAYLOAD_STATE_RECORDING;
+			payload_state = PAYLOAD_STATE_ASCEND;
 		}
 	}
 	return;
@@ -173,7 +175,7 @@ void payload_handle_log(void)
 
 	if (current_page_idx < hspif.PageCnt)
 	{
-		LOG_DBG("Recording page %lu", current_page_idx);
+		if(current_page_idx % 25 == 0) LOG_INF("Recording page %lu", current_page_idx);
 
 		struct payload_sample s = { 0 };
 		if (sensor_io_sample(&s) == 0)
@@ -191,6 +193,47 @@ void payload_handle_log(void)
 				page_sample_idx = 0;
 				memset(&recording_page, 0xFF, sizeof(recording_page));
 			}
+
+            struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
+            float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
+
+            if(current_page_idx % 10 == 0) {
+                LOG_INF("Altitude: %ld", (int32_t) alt);
+            }
+
+            if (payload_state == PAYLOAD_STATE_ASCEND) {
+                if (alt > peak_altitude) {
+                    peak_altitude = alt;
+                } else if (alt < peak_altitude - PAYLOAD_APOGEE_MARGIN_M) {
+                    LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.", (int)peak_altitude);
+                    payload_state = PAYLOAD_STATE_DESCEND;
+                }
+            } else if (payload_state == PAYLOAD_STATE_DESCEND) {
+                if (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M) {
+                    land_hold_count++;
+                    if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES) {
+                        LOG_INF("Landing detected!");
+                        
+                        if (page_sample_idx > 0) {
+                            if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *)&recording_page, sizeof(recording_page), 0)) {
+                                LOG_ERR("Flash write error at page %lu", current_page_idx);
+                            }
+                            current_page_idx++;
+                        }
+                        
+                        LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", current_page_idx);
+                        led_state = LED_OFF;
+                        HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+                        payload_state = PAYLOAD_STATE_DONE;
+    
+                        HAL_SuspendTick();
+                        HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+                    }
+                } else {
+                    land_hold_count = 0;
+                }
+            }
+                    
 		}
 	}
 	else
@@ -225,7 +268,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 			payload_handle_prelog();
 		}
-		else if (payload_state == PAYLOAD_STATE_RECORDING)
+		else if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
 		{
 			payload_handle_log();
 		}
