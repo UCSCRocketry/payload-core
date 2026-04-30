@@ -43,7 +43,7 @@
 // --- Ground landing detection parameters ---
 
 // Altitude must drop this far below peak to declare descent (prevents apogee oscillation false triggers)
-#define PAYLOAD_APOGEE_MARGIN_M		30.0f
+#define PAYLOAD_APOGEE_MARGIN_M		10.0f
 
 // Altitude (m) at or below which the payload is considered "near ground"
 #define PAYLOAD_LAND_ALT_THRESHOLD_M	30.0f
@@ -113,7 +113,8 @@ enum payload_state_e
 {
     PAYLOAD_STATE_INIT = 0,
     PAYLOAD_STATE_PRELAUNCH,
-    PAYLOAD_STATE_RECORDING,
+    PAYLOAD_STATE_ASCEND,
+	PAYLOAD_STATE_DESCEND,
     PAYLOAD_STATE_DONE,
 };
 
