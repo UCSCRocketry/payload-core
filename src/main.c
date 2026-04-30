@@ -1,6 +1,7 @@
 
 #include "main.h"
 #include "payload.h"
+#include "../lib/spif/spif.h"
 #include "log.h"
 #include "stm32f4xx_hal_spi.h"
 #include "stm32f4xx_hal_tim.h"
@@ -15,6 +16,8 @@ SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
 SPI_HandleTypeDef hspi4;
+
+SPIF_HandleTypeDef hspif;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -67,15 +70,24 @@ int main(void)
 	MX_TIM2_Init();
 	MX_TIM3_Init();
 	MX_TIM4_Init();
+
+	log_init(&huart2);
+
+	LOG_INF("------- PAYLOAD CORE INIT -------");
+
+	// Initialize SPI Flash
+	if (!SPIF_Init(&hspif, &hspi1, SPI1_CS_GPIO_Port, SPI1_CS_Pin))
+	{
+		LOG_ERR("Flash init failed");
+		Error_Handler();
+	}
+	LOG_INF("Flash: %lu pages (%lu KiB)", hspif.PageCnt, hspif.PageCnt / 4);
 	
 	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_Base_Start_IT(&htim3);
 
-	log_init(&huart2);
-
 	payload_run();
 
-	// We should not get here
 	while (1)
 		;
 }

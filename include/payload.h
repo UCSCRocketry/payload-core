@@ -108,20 +108,13 @@ enum led_state_e
 	LED_OFF,
 };
 
-/**
- * @brief Flight phase state machine states for ground landing detection.
- *
- * ARMED      -> Pre-launch; waiting for altitude to exceed launch threshold.
- * ASCENDING  -> Launch detected; tracking peak altitude.
- * DESCENDING -> Apogee passed; monitoring for sustained low altitude.
- * LANDED     -> Ground contact confirmed; recording stops.
- */
-enum flight_phase_e
+// Payload Core State Machine State enum
+enum payload_state_e
 {
-	FLIGHT_ARMED,
-	FLIGHT_ASCENDING,
-	FLIGHT_DESCENDING,
-	FLIGHT_LANDED,
+    PAYLOAD_STATE_INIT = 0,
+    PAYLOAD_STATE_PRELAUNCH,
+    PAYLOAD_STATE_RECORDING,
+    PAYLOAD_STATE_DONE,
 };
 
 /**
