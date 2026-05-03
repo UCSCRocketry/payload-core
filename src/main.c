@@ -110,7 +110,7 @@ int main(void)
 	{
 		LOG_ERR("Error initializing servo device 2 (TIM1-CH2).");
 	}
-	
+
 	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start_IT(&htim4);
@@ -528,7 +528,7 @@ static void MX_TIM2_Init(void)
 	htim2.Init.Prescaler = 9999;
 	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
 	htim2.Init.Period = (PAYLOAD_MAIN_POLL_PERIOD_MS * 10) - 1;
-	
+
 	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
 	if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -744,7 +744,7 @@ void Error_Handler(void)
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	led_state = LED_OFF;
-	
+
 	while (1)
 	{
 		HAL_Delay(500);
@@ -772,7 +772,6 @@ void Error_Handler(void)
 			led_state = LED_OFF;
 			HAL_Delay(200);
 		}
-
 	}
 	/* USER CODE END Error_Handler_Debug */
 }

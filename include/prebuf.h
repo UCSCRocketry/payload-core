@@ -14,9 +14,9 @@
 
 struct prebuf
 {
-    struct payload_sample prebuf[PREBUF_DEPTH];
-    uint32_t head;
-    uint32_t count;
+	struct payload_sample prebuf[PREBUF_DEPTH];
+	uint32_t head;
+	uint32_t count;
 };
 
 void prebuf_push(struct prebuf *pb, const struct payload_sample *s);

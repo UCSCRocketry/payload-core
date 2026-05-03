@@ -76,182 +76,172 @@ int main(void)
 	MX_TIM2_Init();
 	MX_TIM3_Init();
 	MX_TIM4_Init();
-	
+
 	log_init(&huart2);
 
-    
-    // Initialize SD card
-    int ret;
+	// Initialize SD card
+	int ret;
 	static struct sdhc_spi_config sd_config = {
 		.hspi = &hspi2,
-        .spi_max_freq = 20000000,
+		.spi_max_freq = 20000000,
 	};
 	static struct sdhc_spi_data sd_spi_data = { 0 };
-    sd_dev.config = &sd_config;
-    sd_dev.data = &sd_spi_data;
+	sd_dev.config = &sd_config;
+	sd_dev.data = &sd_spi_data;
 
 	ret = sdhc_init(&sd_dev);
-    if (ret != 0)
-    {
-        LOG_ERR("SD card init fail with return val %d", ret);
-        Error_Handler();
-    }
+	if (ret != 0)
+	{
+		LOG_ERR("SD card init fail with return val %d", ret);
+		Error_Handler();
+	}
 
+	// Startup filesystem
+	FATFS fs, *fs_ptr;
+	FRESULT fs_ret;
+	uint32_t free_clust, blocks_total, blocks_free;
 
+	fs_ret = f_mount(&fs, (const TCHAR *) "", 0);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Mount fail with f_mount return val %d", fs_ret);
+		Error_Handler();
+	}
+	LOG_INF("Mount success");
 
-    // Startup filesystem
-    FATFS fs, *fs_ptr;
-    FRESULT fs_ret;
-    uint32_t free_clust, blocks_total, blocks_free;
+	fs_ret = f_getfree((const TCHAR *) "", &free_clust, &fs_ptr);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to get free space, f_getfree return val %d", fs_ret);
+		Error_Handler();
+	}
+	LOG_INF("Got free space info");
 
-    fs_ret = f_mount(&fs, (const TCHAR *) "", 0);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Mount fail with f_mount return val %d", fs_ret);
-        Error_Handler();
-    }
-    LOG_INF("Mount success");
+	blocks_total = (fs.n_fatent - 2) * fs.csize;
+	blocks_free = free_clust * fs.csize;
 
-    fs_ret = f_getfree((const TCHAR *) "", &free_clust, &fs_ptr);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to get free space, f_getfree return val %d", fs_ret);
-        Error_Handler();
-    }
-    LOG_INF("Got free space info");
+	LOG_DBG("Total blocks: %lu (%lu Mb)", blocks_total, blocks_total / 2000);
+	LOG_DBG("Free blocks: %lu (%lu Mb)", blocks_free, blocks_free / 2000);
 
-    blocks_total = (fs.n_fatent - 2) * fs.csize;
-    blocks_free = free_clust * fs.csize;
+	// Open root and list files/dirs
+	DIR dir;
+	FILINFO file_info;
+	uint32_t files_total = 0;
+	uint32_t dirs_total = 0;
 
-    LOG_DBG("Total blocks: %lu (%lu Mb)", blocks_total, blocks_total / 2000);
-    LOG_DBG("Free blocks: %lu (%lu Mb)", blocks_free, blocks_free / 2000);
+	fs_ret = f_opendir(&dir, (const TCHAR *) "/");
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to open directory, f_opendir return val %d", fs_ret);
+		Error_Handler();
+	}
 
+	LOG_INF("Root directory:");
+	while (1)
+	{
+		fs_ret = f_readdir(&dir, &file_info);
+		if ((fs_ret != FR_OK) || (file_info.fname[0] == '\0'))
+		{
+			break;
+		}
 
+		if (file_info.fattrib & AM_DIR)
+		{
+			LOG_INF("  DIR  %s", file_info.fname);
+			dirs_total++;
+		}
+		else
+		{
+			LOG_INF("  FILE %s", file_info.fname);
+			files_total++;
+		}
+	}
 
-    // Open root and list files/dirs
-    DIR dir;
-    FILINFO file_info;
-    uint32_t files_total = 0;
-    uint32_t dirs_total = 0;
+	LOG_INF("(total: %lu dirs, %lu files)\r\n", dirs_total, files_total);
 
-    fs_ret = f_opendir(&dir, (const TCHAR *) "/");
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to open directory, f_opendir return val %d", fs_ret);
-        Error_Handler();
-    }
-    
-    LOG_INF("Root directory:");
-    while (1)
-    {
-        fs_ret = f_readdir(&dir, &file_info);
-        if ((fs_ret != FR_OK) || (file_info.fname[0] == '\0'))
-        {
-            break;
-        }
+	fs_ret = f_closedir(&dir);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to close directory, f_closedir return is %d", fs_ret);
+		Error_Handler();
+	}
 
-        if (file_info.fattrib & AM_DIR)
-        {
-            LOG_INF("  DIR  %s", file_info.fname);
-            dirs_total++;
-        }
-        else
-        {
-            LOG_INF("  FILE %s", file_info.fname);
-            files_total++;
-        }
-    }
+	// Write to a log.txt
+	LOG_INF("Writing to a log.txt...");
+	FIL file;
+	char buf[1024];
+	uint64_t bytes_to_write, bytes_written;
 
-    LOG_INF("(total: %lu dirs, %lu files)\r\n", dirs_total, files_total);
+	snprintf(buf, sizeof(buf), "Total Blocks: %lu (%lu Mb); Free blocks: %lu (%lu Mb)\r\n",
+	         blocks_total, blocks_total / 2000, blocks_free, blocks_free / 2000);
 
-    fs_ret = f_closedir(&dir);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to close directory, f_closedir return is %d", fs_ret);
-        Error_Handler();
-    }
+	fs_ret = f_open(&file, (const TCHAR *) "log.txt", FA_OPEN_APPEND | FA_WRITE);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to open file for write, f_open return is %d", fs_ret);
+		Error_Handler();
+	}
 
+	bytes_to_write = strlen(buf);
+	fs_ret = f_write(&file, buf, bytes_to_write, (UINT *) &bytes_written);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to write into file, f_write return is %d", fs_ret);
+		Error_Handler();
+	}
 
-    // Write to a log.txt
-    LOG_INF("Writing to a log.txt...");
-    FIL file;
-    char buf[1024];
-    uint64_t bytes_to_write, bytes_written;
+	if (bytes_written < bytes_to_write)
+	{
+		LOG_ERR("Could not write, disk is full.");
+	}
 
-    snprintf(buf, sizeof (buf), "Total Blocks: %lu (%lu Mb); Free blocks: %lu (%lu Mb)\r\n",
-             blocks_total, blocks_total / 2000, blocks_free, blocks_free / 2000);
-    
-    fs_ret = f_open(&file, (const TCHAR *) "log.txt", FA_OPEN_APPEND | FA_WRITE);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to open file for write, f_open return is %d", fs_ret);
-        Error_Handler();
-    }
+	fs_ret = f_close(&file);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to close file, f_close return is %d", fs_ret);
+		Error_Handler();
+	}
 
-    bytes_to_write = strlen(buf);
-    fs_ret = f_write(&file, buf, bytes_to_write, (UINT *) &bytes_written);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to write into file, f_write return is %d", fs_ret);
-        Error_Handler();
-    }
+	LOG_INF("Write file complete");
 
-    if (bytes_written < bytes_to_write)
-    {
-        LOG_ERR("Could not write, disk is full.");
-    }
+	// Read the log.txt
+	LOG_INF("Reading...");
+	uint64_t bytes_read;
+	memset(buf, 0x00, sizeof(buf));
 
-    fs_ret = f_close(&file);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to close file, f_close return is %d", fs_ret);
-        Error_Handler();
-    }
+	fs_ret = f_open(&file, (const TCHAR *) "log.txt", FA_READ);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to open file for read, f_open return is %d", fs_ret);
+		Error_Handler();
+	}
 
-    LOG_INF("Write file complete");
+	fs_ret = f_read(&file, buf, sizeof(buf) - 1, (UINT *) &bytes_read);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to read file, f_read return is %d", fs_ret);
+		Error_Handler();
+	}
 
-    // Read the log.txt
-    LOG_INF("Reading...");
-    uint64_t bytes_read;
-    memset(buf, 0x00, sizeof(buf));
+	buf[bytes_read] = '\0';
+	LOG_INF("Contents read:\r\n```\r\n%s\r\n```", buf);
 
-    fs_ret = f_open(&file, (const TCHAR *) "log.txt", FA_READ);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to open file for read, f_open return is %d", fs_ret);
-        Error_Handler();
-    }
+	fs_ret = f_close(&file);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Failed to close file, f_close return is %d", fs_ret);
+		Error_Handler();
+	}
 
-    fs_ret = f_read(&file, buf, sizeof(buf) - 1, (UINT *) &bytes_read);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to read file, f_read return is %d", fs_ret);
-        Error_Handler();
-    }
+	// Unmount
+	fs_ret = f_mount(NULL, (const TCHAR *) "", 0);
+	if (fs_ret != FR_OK)
+	{
+		LOG_ERR("Unmount failed, f_mount return is %d", fs_ret);
+		Error_Handler();
+	}
 
-    buf[bytes_read] = '\0';
-    LOG_INF("Contents read:\r\n```\r\n%s\r\n```", buf);
-
-
-    fs_ret = f_close(&file);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Failed to close file, f_close return is %d", fs_ret);
-        Error_Handler();
-    }
-    
-
-    // Unmount
-    fs_ret = f_mount(NULL, (const TCHAR *) "", 0);
-    if (fs_ret != FR_OK)
-    {
-        LOG_ERR("Unmount failed, f_mount return is %d", fs_ret);
-        Error_Handler();
-    }
-
-    LOG_INF("File safely closed and drive unmounted");
-
-
+	LOG_INF("File safely closed and drive unmounted");
 
 	/* Infinite loop */
 	while (1)
@@ -879,7 +869,7 @@ void Error_Handler(void)
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	led_state = LED_OFF;
-	
+
 	while (1)
 	{
 		HAL_Delay(500);
@@ -907,7 +897,6 @@ void Error_Handler(void)
 			led_state = LED_OFF;
 			HAL_Delay(200);
 		}
-
 	}
 	/* USER CODE END Error_Handler_Debug */
 }

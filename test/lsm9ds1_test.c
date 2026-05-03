@@ -71,12 +71,12 @@ int main(void)
 	MX_TIM2_Init();
 	MX_TIM3_Init();
 	MX_TIM4_Init();
-	
-	log_init(&huart2);
-    LOG_INF("Hello World!");
 
-    // Initialize IMU
-    struct lsm9ds1_config imu_config;
+	log_init(&huart2);
+	LOG_INF("Hello World!");
+
+	// Initialize IMU
+	struct lsm9ds1_config imu_config;
 	struct lsm9ds1_data imu_data;
 	struct lsm9ds1_device imu_device = {
 		.config = &imu_config,
@@ -91,17 +91,16 @@ int main(void)
 	if (lsm9ds1_init(&imu_device) != 0)
 	{
 		LOG_ERR("LSM9DS1 IMU Initialization Fail");
-        Error_Handler();
+		Error_Handler();
 	}
 	else
 	{
 		LOG_INF("LSM9DS1 IMU Initialized");
 	}
 
-
-    // Initialize magnetometer
+	// Initialize magnetometer
 #ifdef __MAG_ENABLED__
-    struct lsm9ds1_mag_config mag_config;
+	struct lsm9ds1_mag_config mag_config;
 	struct lsm9ds1_mag_data mag_data;
 	struct lsm9ds1_mag_device mag_device = {
 		.config = &mag_config,
@@ -115,7 +114,7 @@ int main(void)
 	if (lsm9ds1_mag_init(&mag_device) != 0)
 	{
 		LOG_ERR("LSM9DS1 Mag Initialization Fail");
-        Error_Handler();
+		Error_Handler();
 	}
 	else
 	{
@@ -123,62 +122,61 @@ int main(void)
 	}
 #endif
 
-    // Structs to store sensor value
-    struct sensor_value accel_val[3] = {0};
-    struct sensor_value gyro_val[3] = {0};
+	// Structs to store sensor value
+	struct sensor_value accel_val[3] = { 0 };
+	struct sensor_value gyro_val[3] = { 0 };
 #ifdef __MAG_ENABLED__
-    struct sensor_value mag_val[3] = {0};
+	struct sensor_value mag_val[3] = { 0 };
 #endif
-
 
 	// Infinitely read sensor data and output to serial
 	while (1)
 	{
 
-        if (lsm9ds1_sample_fetch_accel(&imu_device))
-        {
-            Error_Handler();
-        }
+		if (lsm9ds1_sample_fetch_accel(&imu_device))
+		{
+			Error_Handler();
+		}
 
-        if (lsm9ds1_accel_channel_get(SENSOR_CHAN_ACCEL_XYZ, accel_val, &imu_data))
-        {
-            Error_Handler();
-        }
-        
-        LOG_INF("LSM9DS1 Received SENSOR_CHAN_ACCEL_XYZ");
-        LOG_RAW(">xlX:%f,xlY:%f,xlZ:%f", sensor_value_to_float(&accel_val[0]), 
-            sensor_value_to_float(&accel_val[1]), sensor_value_to_float(&accel_val[2]));
-        
-        if (lsm9ds1_sample_fetch_gyro(&imu_device))
-        {
-            Error_Handler();
-        }
+		if (lsm9ds1_accel_channel_get(SENSOR_CHAN_ACCEL_XYZ, accel_val, &imu_data))
+		{
+			Error_Handler();
+		}
 
-        if (lsm9ds1_gyro_channel_get(SENSOR_CHAN_GYRO_XYZ, gyro_val, &imu_data))
-        {
-            Error_Handler();
-        }
+		LOG_INF("LSM9DS1 Received SENSOR_CHAN_ACCEL_XYZ");
+		LOG_RAW(">xlX:%f,xlY:%f,xlZ:%f", sensor_value_to_float(&accel_val[0]),
+		        sensor_value_to_float(&accel_val[1]), sensor_value_to_float(&accel_val[2]));
 
-        LOG_INF("LSM9DS1 Received SENSOR_CHAN_GYRO_XYZ");
-        LOG_RAW(">gyroX:%f,gyroY:%f,gyroZ:%f", sensor_value_to_float(&gyro_val[0]), 
-            sensor_value_to_float(&gyro_val[1]), sensor_value_to_float(&gyro_val[2]));
+		if (lsm9ds1_sample_fetch_gyro(&imu_device))
+		{
+			Error_Handler();
+		}
+
+		if (lsm9ds1_gyro_channel_get(SENSOR_CHAN_GYRO_XYZ, gyro_val, &imu_data))
+		{
+			Error_Handler();
+		}
+
+		LOG_INF("LSM9DS1 Received SENSOR_CHAN_GYRO_XYZ");
+		LOG_RAW(">gyroX:%f,gyroY:%f,gyroZ:%f", sensor_value_to_float(&gyro_val[0]),
+		        sensor_value_to_float(&gyro_val[1]), sensor_value_to_float(&gyro_val[2]));
 
 #ifdef __MAG_ENABLED__
-        if (lsm9ds1_mag_sample_fetch(&mag_device))
-        {
-            Error_Handler();
-        }
-        if (lsm9ds1_mag_channel_get(&mag_device, SENSOR_CHAN_MAGN_XYZ, mag_val))
-        {
-            Error_Handler();
-        }
+		if (lsm9ds1_mag_sample_fetch(&mag_device))
+		{
+			Error_Handler();
+		}
+		if (lsm9ds1_mag_channel_get(&mag_device, SENSOR_CHAN_MAGN_XYZ, mag_val))
+		{
+			Error_Handler();
+		}
 
-        LOG_INF("LSM9DS1 Received SENSOR_CHAN_MAGN_XYZ");
-        LOG_RAW(">magX:%f,magY:%f,magZ:%f", sensor_value_to_float(&mag_val[0]), 
-            sensor_value_to_float(&mag_val[1]), sensor_value_to_float(&mag_val[2]));
+		LOG_INF("LSM9DS1 Received SENSOR_CHAN_MAGN_XYZ");
+		LOG_RAW(">magX:%f,magY:%f,magZ:%f", sensor_value_to_float(&mag_val[0]),
+		        sensor_value_to_float(&mag_val[1]), sensor_value_to_float(&mag_val[2]));
 #endif
 
-        HAL_Delay(200);
+		HAL_Delay(200);
 	}
 }
 
@@ -803,7 +801,7 @@ void Error_Handler(void)
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	led_state = LED_OFF;
-	
+
 	while (1)
 	{
 		HAL_Delay(500);
@@ -831,7 +829,6 @@ void Error_Handler(void)
 			led_state = LED_OFF;
 			HAL_Delay(200);
 		}
-
 	}
 	/* USER CODE END Error_Handler_Debug */
 }

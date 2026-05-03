@@ -9,7 +9,6 @@ int servo_init(struct servo_device *dev)
 	TIM_HandleTypeDef *htim = dev->htim;
 	TIM_OC_InitTypeDef sConfigOC = { 0 };
 
-
 	float target_div = (float) clk_freq * (float) dev->period_us / 1000000.0f;
 	// Iterate to find the optimal prescaler while maximizing period
 	uint32_t period = 65535;

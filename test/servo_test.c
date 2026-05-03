@@ -120,7 +120,6 @@ int main(void)
 		LOG_INF("Servo 1 pos: %f", servo1_pos);
 		LOG_INF("Servo 2 pos: %f", servo2_pos);
 
-
 		HAL_Delay(500);
 		servo_set(&servo_dev2, -45.0);
 		servo_set(&servo_dev1, -45.0);
@@ -129,11 +128,10 @@ int main(void)
 		LOG_INF("Servo 1 pos: %f", servo1_pos);
 		LOG_INF("Servo 2 pos: %f", servo2_pos);
 	}
-	
 
-// We should not get here
-while (1)
-	;
+	// We should not get here
+	while (1)
+		;
 }
 
 /**

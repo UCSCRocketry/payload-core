@@ -26,7 +26,7 @@ static struct lsm9ds1_device imu_dev = { .config = &imu_cfg, .data = &imu_dat };
  */
 int sensor_io_init(SPI_HandleTypeDef *hspi_bmp, SPI_HandleTypeDef *hspi_imu)
 {
-    // Init BMP388
+	// Init BMP388
 	bmp_cfg.hspi = hspi_bmp;
 	if (bmp388_init(&bmp_dev) != 0)
 	{
@@ -35,7 +35,7 @@ int sensor_io_init(SPI_HandleTypeDef *hspi_bmp, SPI_HandleTypeDef *hspi_imu)
 	}
 	LOG_INF("Sensor IO: BMP388 OK");
 
-    // Init LSM9DS1
+	// Init LSM9DS1
 	lsm9ds1_ctx_init_imu(&imu_cfg.ctx, hspi_imu);
 	imu_cfg.accel_range = LSM9DS1_4g;
 	imu_cfg.gyro_range = LSM9DS1_500dps;
@@ -63,10 +63,7 @@ int sensor_io_sample(struct payload_sample *s)
 
 	s->timestamp_ms = (uint64_t) HAL_GetTick();
 
-	
-
-	if (bmp388_sample_fetch(&bmp_dev)
-	    || bmp388_channel_get(&bmp_dev, SENSOR_CHAN_PRESS, &press))
+	if (bmp388_sample_fetch(&bmp_dev) || bmp388_channel_get(&bmp_dev, SENSOR_CHAN_PRESS, &press))
 	{
 		LOG_WRN("Sensor IO: BMP388 sample failed");
 		return -1;
@@ -106,7 +103,7 @@ int sensor_io_sample(struct payload_sample *s)
 
 /**
  * @brief Average num_samples pressure readings for a launch-site baseline.
- * @param num_samples Number of samples 
+ * @param num_samples Number of samples
  * @return Baseline pressure in kPa.
  */
 float sensor_io_press_baseline(int num_samples)

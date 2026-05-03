@@ -13,46 +13,48 @@
 #define __PAYLOAD_TESTING__
 
 // Sensor polling period during prelaunch buffer capture
-#define PAYLOAD_PREBUF_POLL_PERIOD_MS	20U
+#define PAYLOAD_PREBUF_POLL_PERIOD_MS 20U
 
 // Sensor polling period during flight
-#define PAYLOAD_MAIN_POLL_PERIOD_MS		20U
+#define PAYLOAD_MAIN_POLL_PERIOD_MS 20U
 
 // User button port/pin on Blackpill;
-#define PAYLOAD_BTN_GPIO_PORT   GPIOA
-#define PAYLOAD_BTN_GPIO_PIN    GPIO_PIN_0
+#define PAYLOAD_BTN_GPIO_PORT GPIOA
+#define PAYLOAD_BTN_GPIO_PIN  GPIO_PIN_0
 
 // Record / prebuf commit trigger altitude.
-#define PAYLOAD_LAUNCH_ALT_THRESHOLD_M      100.0f
+#define PAYLOAD_LAUNCH_ALT_THRESHOLD_M 100.0f
 
 // Number of BMP388 readings averaged to establish the launch-site baseline.
-#define PAYLOAD_BASELINE_SAMPLES    16
+#define PAYLOAD_BASELINE_SAMPLES 16
 
 // Prelaunch buffer size
-#define PAYLOAD_PREBUF_DEPTH    	64
+#define PAYLOAD_PREBUF_DEPTH 64
 
 // Number of payload samples (64B) per page (256B)
-#define PAYLOAD_SAMPLES_PER_PAGE    4
+#define PAYLOAD_SAMPLES_PER_PAGE 4
 
 // After launch detection, payload records for this amount of time
-#define PAYLOAD_MAX_RECORD_LEN_S	1200
+#define PAYLOAD_MAX_RECORD_LEN_S 1200
 
 // Maximum number of samples recorded after launch detection
-#define PAYLOAD_MAX_SAMPLES_NUM		PAYLOAD_MAX_RECORD_LEN_S * (1000 / PAYLOAD_MAIN_POLL_PERIOD_MS)
+#define PAYLOAD_MAX_SAMPLES_NUM PAYLOAD_MAX_RECORD_LEN_S * (1000 / PAYLOAD_MAIN_POLL_PERIOD_MS)
 
 // --- Ground landing detection parameters ---
 
-// Altitude must drop this far below peak to declare descent (prevents apogee oscillation false triggers)
-#define PAYLOAD_APOGEE_MARGIN_M		50.0f
+// Altitude must drop this far below peak to declare descent (prevents apogee oscillation false
+// triggers)
+#define PAYLOAD_APOGEE_MARGIN_M 50.0f
 
 // Altitude (m) at or below which the payload is considered "near ground"
-#define PAYLOAD_LAND_ALT_THRESHOLD_M	200.0f
+#define PAYLOAD_LAND_ALT_THRESHOLD_M 200.0f
 
 // Duration (seconds) that altitude must stay below land threshold to confirm landing
-#define PAYLOAD_LAND_HOLD_S		30
+#define PAYLOAD_LAND_HOLD_S 30
 
-// Number of consecutive samples below land threshold required (derived from hold time and poll period)
-#define PAYLOAD_LAND_HOLD_SAMPLES	(PAYLOAD_LAND_HOLD_S * (1000 / PAYLOAD_MAIN_POLL_PERIOD_MS))
+// Number of consecutive samples below land threshold required (derived from hold time and poll
+// period)
+#define PAYLOAD_LAND_HOLD_SAMPLES (PAYLOAD_LAND_HOLD_S * (1000 / PAYLOAD_MAIN_POLL_PERIOD_MS))
 
 /**
  * @brief Payload logging sample
@@ -81,12 +83,12 @@ struct payload_sample
  */
 static inline int button_pressed(void)
 {
-    if (HAL_GPIO_ReadPin(PAYLOAD_BTN_GPIO_PORT, PAYLOAD_BTN_GPIO_PIN) == GPIO_PIN_RESET)
-    {
-        HAL_Delay(20);
-        return (HAL_GPIO_ReadPin(PAYLOAD_BTN_GPIO_PORT, PAYLOAD_BTN_GPIO_PIN) == GPIO_PIN_RESET);
-    }
-    return 0;
+	if (HAL_GPIO_ReadPin(PAYLOAD_BTN_GPIO_PORT, PAYLOAD_BTN_GPIO_PIN) == GPIO_PIN_RESET)
+	{
+		HAL_Delay(20);
+		return (HAL_GPIO_ReadPin(PAYLOAD_BTN_GPIO_PORT, PAYLOAD_BTN_GPIO_PIN) == GPIO_PIN_RESET);
+	}
+	return 0;
 }
 
 /**
@@ -111,11 +113,11 @@ enum led_state_e
 // Payload Core State Machine State enum
 enum payload_state_e
 {
-    PAYLOAD_STATE_INIT = 0,
-    PAYLOAD_STATE_PRELAUNCH,
-    PAYLOAD_STATE_ASCEND,
+	PAYLOAD_STATE_INIT = 0,
+	PAYLOAD_STATE_PRELAUNCH,
+	PAYLOAD_STATE_ASCEND,
 	PAYLOAD_STATE_DESCEND,
-    PAYLOAD_STATE_DONE,
+	PAYLOAD_STATE_DONE,
 };
 
 /**

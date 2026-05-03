@@ -69,7 +69,7 @@ int main(void)
 	MX_TIM2_Init();
 	MX_TIM3_Init();
 	MX_TIM4_Init();
-	
+
 	log_init(&huart2);
 
 	struct bmp388_config bmp388_config = {
@@ -733,7 +733,7 @@ void Error_Handler(void)
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	led_state = LED_OFF;
-	
+
 	while (1)
 	{
 		HAL_Delay(500);
@@ -761,7 +761,6 @@ void Error_Handler(void)
 			led_state = LED_OFF;
 			HAL_Delay(200);
 		}
-
 	}
 	/* USER CODE END Error_Handler_Debug */
 }

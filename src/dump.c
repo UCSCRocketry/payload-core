@@ -32,7 +32,7 @@ struct sdhc_spi_device sd_dev; // SD Card device
  */
 int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 {
-    // ******** Init devices ********
+	// ******** Init devices ********
 	static struct sdhc_spi_config sd_cfg = {
 		.hspi = &hspi2,
 		.spi_max_freq = 20000000,
@@ -54,25 +54,25 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 		LOG_ERR("Dump: filesystem mount failed");
 		return -EIO;
 	}
-    
-    // ******** Perform Dump Operations ********
+
+	// ******** Perform Dump Operations ********
 
 	uint32_t num_pages = spif->PageCnt;
 	uint8_t page_buf[SPIF_PAGE_SIZE];
 	uint32_t crc_wr = 0;
 	uint32_t crc_rd = 0;
-    int ret = 1;
+	int ret = 1;
 	FIL file;
 	UINT num_xferred;
 
-    // Open the file to write
+	// Open the file to write
 	if (f_open(&file, "DATA.BIN", FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
 	{
 		LOG_ERR("Dump: cannot open DATA.BIN for write");
 		goto unmount;
 	}
 
-    // // Write the header
+	// // Write the header
 	// if (f_write(&file, &num_pages, sizeof(num_pages), &num_xferred) != FR_OK
 	//     || num_xferred != sizeof(num_pages))
 	// {
@@ -81,12 +81,12 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 	// 	goto unmount;
 	// }
 
-    // Perform the data transfer
+	// Perform the data transfer
 	LOG_INF("Performing data transfer...DO NOT REMOVE CARD");
 	__HAL_CRC_DR_RESET(&hcrc);
 	for (uint32_t i = 0; i < num_pages; i++)
 	{
-        // Read from flash
+		// Read from flash
 		if (!SPIF_ReadPage(spif, i, page_buf, SPIF_PAGE_SIZE, 0))
 		{
 			LOG_ERR("Dump: flash read error at page %lu", i);
@@ -94,12 +94,13 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 			goto unmount;
 		}
 
-        // Accumulate CRC32 value
+		// Accumulate CRC32 value
 		crc_wr = HAL_CRC_Accumulate(&hcrc, (uint32_t *) page_buf,
-		                               SPIF_PAGE_SIZE / sizeof(uint32_t));
+		                            SPIF_PAGE_SIZE / sizeof(uint32_t));
 
-        // Write to SD
-		if (f_write(&file, page_buf, SPIF_PAGE_SIZE, &num_xferred) != FR_OK || num_xferred != SPIF_PAGE_SIZE)
+		// Write to SD
+		if (f_write(&file, page_buf, SPIF_PAGE_SIZE, &num_xferred) != FR_OK
+		    || num_xferred != SPIF_PAGE_SIZE)
 		{
 			LOG_ERR("Dump: SD write error at page %lu", i);
 			(void) f_close(&file);
@@ -110,14 +111,14 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 	LOG_INF("Dump: Transfer success, wrote %lu pages, CRC=0x%08lX", num_pages, crc_wr);
 
 	// ******** Verify the dump ********
-    // Open the file
+	// Open the file
 	if (f_open(&file, "DATA.BIN", FA_READ) != FR_OK)
 	{
 		LOG_ERR("Dump: cannot open DATA.BIN for verify");
 		goto unmount;
 	}
 
-    // // Skip over the header
+	// // Skip over the header
 	// if (f_lseek(&file, sizeof(num_pages)) != FR_OK)
 	// {
 	// 	LOG_ERR("Dump: lseek failed during verify");
@@ -125,27 +126,28 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 	// 	goto unmount;
 	// }
 
-    // Perform the CRC calculation
+	// Perform the CRC calculation
 	LOG_INF("Performing data verification...DO NOT REMOVE CARD");
 	__HAL_CRC_DR_RESET(&hcrc);
 	for (uint32_t p = 0; p < num_pages; p++)
 	{
-        // Read
-		if (f_read(&file, page_buf, SPIF_PAGE_SIZE, &num_xferred) != FR_OK || num_xferred != SPIF_PAGE_SIZE)
+		// Read
+		if (f_read(&file, page_buf, SPIF_PAGE_SIZE, &num_xferred) != FR_OK
+		    || num_xferred != SPIF_PAGE_SIZE)
 		{
 			LOG_ERR("Dump: read error at page %lu during verify", p);
 			(void) f_close(&file);
 			goto unmount;
 		}
 
-        // And accumulate
+		// And accumulate
 		crc_rd = HAL_CRC_Accumulate(&hcrc, (uint32_t *) page_buf,
-		                              SPIF_PAGE_SIZE / sizeof(uint32_t));
+		                            SPIF_PAGE_SIZE / sizeof(uint32_t));
 	}
 	(void) f_close(&file);
 	LOG_INF("Dump: SD card data CRC=0x%08lX", crc_rd);
 
-    // Check CRC is matching
+	// Check CRC is matching
 	if (crc_wr != crc_rd)
 	{
 		LOG_ERR("Dump: CRC mismatch - flash NOT erased (write=0x%08lX read=0x%08lX)", crc_wr,
@@ -172,7 +174,6 @@ unmount:
 	{
 		LOG_INF("Dump: Error unmounting SD Card, take caution during removal");
 	}
-	
 
 	return ret;
 }

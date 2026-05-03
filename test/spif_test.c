@@ -69,78 +69,77 @@ int main(void)
 	MX_TIM2_Init();
 	MX_TIM3_Init();
 	MX_TIM4_Init();
-	
+
 	log_init(&huart2);
 
-    LOG_INF("Start test...");
+	LOG_INF("Start test...");
 
-    uint8_t dataw[256];
-    uint8_t datar[256];
+	uint8_t dataw[256];
+	uint8_t datar[256];
 
-    for (int i = 0; i < 256; i++)
-    {
-        dataw[i] = 0x01;
-    }
+	for (int i = 0; i < 256; i++)
+	{
+		dataw[i] = 0x01;
+	}
 
-    memset(datar, 0, sizeof(datar));
+	memset(datar, 0, sizeof(datar));
 
-    SPIF_HandleTypeDef hspif = {0};
+	SPIF_HandleTypeDef hspif = { 0 };
 
-    if (!SPIF_Init(&hspif, &hspi1, SPI1_CS_GPIO_Port, SPI1_CS_Pin))
-    {
-        LOG_ERR("Error initializing SPI Flash");
-        Error_Handler();
-    }
-    LOG_INF("Initialized SPI Flash");
+	if (!SPIF_Init(&hspif, &hspi1, SPI1_CS_GPIO_Port, SPI1_CS_Pin))
+	{
+		LOG_ERR("Error initializing SPI Flash");
+		Error_Handler();
+	}
+	LOG_INF("Initialized SPI Flash");
 
-    if (!SPIF_EraseBlock(&hspif, 0x0))
-    {
-        LOG_ERR("Error Erasing Block");
-        Error_Handler();
-    }
-    LOG_INF("Erased block 0x0");
+	if (!SPIF_EraseBlock(&hspif, 0x0))
+	{
+		LOG_ERR("Error Erasing Block");
+		Error_Handler();
+	}
+	LOG_INF("Erased block 0x0");
 
-    if (!SPIF_ReadBlock(&hspif, 0x0, (uint8_t *) &datar, 256, 0))
-    {
-        LOG_ERR("Error Reading from Block");
-        Error_Handler();
-    }
-    LOG_INF("Read block 0x0");
+	if (!SPIF_ReadBlock(&hspif, 0x0, (uint8_t *) &datar, 256, 0))
+	{
+		LOG_ERR("Error Reading from Block");
+		Error_Handler();
+	}
+	LOG_INF("Read block 0x0");
 
-    for (int i = 0; i < 256; i++)
-    {
-        log_msg_raw("%02x", datar[i]);
-    }
-    log_msg_raw("\r\n");
+	for (int i = 0; i < 256; i++)
+	{
+		log_msg_raw("%02x", datar[i]);
+	}
+	log_msg_raw("\r\n");
 
-    if (!SPIF_WriteBlock(&hspif, 0x0, (uint8_t *) &dataw, 256, 0))
-    {
-        LOG_ERR("Error Writing to Block");
-        Error_Handler();
-    }
-    LOG_INF("Wrote to block 0x0");
+	if (!SPIF_WriteBlock(&hspif, 0x0, (uint8_t *) &dataw, 256, 0))
+	{
+		LOG_ERR("Error Writing to Block");
+		Error_Handler();
+	}
+	LOG_INF("Wrote to block 0x0");
 
-    if (!SPIF_ReadBlock(&hspif, 0x0, (uint8_t *) &datar, 256, 0))
-    {
-        LOG_ERR("Error Reading from Block");
-        Error_Handler();
-    }
-    LOG_INF("Read block 0x0");
+	if (!SPIF_ReadBlock(&hspif, 0x0, (uint8_t *) &datar, 256, 0))
+	{
+		LOG_ERR("Error Reading from Block");
+		Error_Handler();
+	}
+	LOG_INF("Read block 0x0");
 
-    for (int i = 0; i < 256; i++)
-    {
-        log_msg_raw("%02x", datar[i]);
-    }
-    log_msg_raw("\r\n");
+	for (int i = 0; i < 256; i++)
+	{
+		log_msg_raw("%02x", datar[i]);
+	}
+	log_msg_raw("\r\n");
 
-    LOG_INF("Start erase chip");
-    if (!SPIF_EraseChip(&hspif))
-    {
-        LOG_ERR("Error erasing entire chip");
-        Error_Handler();
-    }
-    LOG_INF("Erase chip done");
-
+	LOG_INF("Start erase chip");
+	if (!SPIF_EraseChip(&hspif))
+	{
+		LOG_ERR("Error erasing entire chip");
+		Error_Handler();
+	}
+	LOG_INF("Erase chip done");
 
 	/* Infinite loop */
 	while (1)
@@ -768,7 +767,7 @@ void Error_Handler(void)
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	led_state = LED_OFF;
-	
+
 	while (1)
 	{
 		HAL_Delay(500);
@@ -796,7 +795,6 @@ void Error_Handler(void)
 			led_state = LED_OFF;
 			HAL_Delay(200);
 		}
-
 	}
 	/* USER CODE END Error_Handler_Debug */
 }
