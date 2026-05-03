@@ -23,6 +23,11 @@ int servo_init(struct servo_device *dev)
 		period--;
 	}
 
+	// Values for our servos:
+	// target_div = 2e6
+	// prescaler = 31
+	// period = 64516
+
 	// Configure timer
 	htim->Init.Prescaler = prescaler - 1;
 	htim->Init.CounterMode = TIM_COUNTERMODE_UP;

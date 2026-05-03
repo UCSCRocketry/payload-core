@@ -3,6 +3,7 @@
 #include "payload.h"
 #include "../lib/spif/spif.h"
 #include "log.h"
+#include "servo.h"
 #include "stm32f4xx_hal_spi.h"
 #include "stm32f4xx_hal_tim.h"
 
@@ -25,6 +26,9 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
+
+struct servo_device servo_dev1 = { 0 };
+struct servo_device servo_dev2 = { 0 };
 
 enum led_state_e led_state = LED_OFF;
 
@@ -82,9 +86,34 @@ int main(void)
 		Error_Handler();
 	}
 	LOG_INF("Flash: %lu pages (%lu KiB)", hspif.PageCnt, hspif.PageCnt / 4);
+
+	// Initialize servos
+	servo_dev1.htim = &htim1;
+	servo_dev1.hadc = &hadc1;
+	servo_dev1.tim_channel = TIM_CHANNEL_1;
+	servo_dev1.adc_channel = ADC_CHANNEL_8;
+	servo_dev1.period_us = 20000;
+	servo_dev1.pwm_min_us = 500;
+	servo_dev1.pwm_max_us = 2500;
+	servo_dev1.deg_min = -90.0;
+	servo_dev1.deg_max = 90.0;
+	servo_dev1.deg_offset = 0.0;
+	if (servo_init(&servo_dev1))
+	{
+		LOG_ERR("Error initializing servo device 1 (TIM1-CH1).");
+	}
+
+	servo_dev2 = servo_dev1;
+	servo_dev2.adc_channel = ADC_CHANNEL_9;
+	servo_dev2.tim_channel = TIM_CHANNEL_2;
+	if (servo_init(&servo_dev2))
+	{
+		LOG_ERR("Error initializing servo device 2 (TIM1-CH2).");
+	}
 	
 	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_Base_Start_IT(&htim3);
+	HAL_TIM_Base_Start_IT(&htim4);
 
 	payload_run();
 
@@ -585,9 +614,9 @@ static void MX_TIM4_Init(void)
 
 	/* USER CODE END TIM4_Init 1 */
 	htim4.Instance = TIM4;
-	htim4.Init.Prescaler = 0;
+	htim4.Init.Prescaler = 10000;
 	htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim4.Init.Period = 65535;
+	htim4.Init.Period = 100;
 	htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_Base_Init(&htim4) != HAL_OK)

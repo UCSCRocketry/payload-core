@@ -12,6 +12,7 @@
 #include "sensor.h"
 #include "main.h"
 #include "log.h"
+#include "servo.h"
 #include "stm32f4xx_hal_gpio.h"
 #include <string.h>
 #include <stdbool.h>
@@ -30,6 +31,9 @@ extern TIM_HandleTypeDef htim3; // Timer 3 peripheral (LED)
 extern TIM_HandleTypeDef htim4; // Timer 4 peripheral (Servo)
 
 extern SPIF_HandleTypeDef hspif; // SPI flash device
+
+extern struct servo_device servo_dev1;
+extern struct servo_device servo_dev2;
 
 extern enum led_state_e led_state;
 
@@ -69,7 +73,7 @@ void payload_run(void)
 				led_state = LED_OFF;
 				goto cancel_erase;
 			}
-			
+
 			// Delay for 1 seconds - 10 seconds total
 			HAL_Delay(1000);
 			LOG_INF("Held for %u/10 seconds till erase (RELEASE to dump flash)", i + 1);
@@ -81,10 +85,8 @@ void payload_run(void)
 			LOG_ERR("SPIF Erase: flash chip erase failed");
 		}
 		LOG_INF("SPIF Erase: flash erased. Done.");
-
 	}
-	cancel_erase:
-	
+cancel_erase:
 
 	// Wait 5 seconds as a buffer between dump sensitive and arm sensitive button
 	LOG_INF("Waiting 5 s...");
@@ -165,93 +167,140 @@ void payload_handle_prelog(void)
 			memset(&recording_page, 0xFF, sizeof(recording_page));
 			page_sample_idx = 0;
 			payload_state = PAYLOAD_STATE_ASCEND;
-		}
-	}
-	return;
-}
 
-void payload_handle_log(void)
-{
-
-	if (current_page_idx < hspif.PageCnt)
-	{
-		if(current_page_idx % 25 == 0) LOG_INF("Recording page %lu", current_page_idx);
-
-		struct payload_sample s = { 0 };
-		if (sensor_io_sample(&s) == 0)
-		{
-			recording_page.samples[page_sample_idx++] = s;
-
-			if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE)
+			if (servo_start(&servo_dev1))
 			{
-				if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *) &recording_page,
-				                    sizeof(recording_page), 0))
-				{
-					LOG_ERR("Flash write error at page %lu", current_page_idx);
-				}
-				current_page_idx++;
-				page_sample_idx = 0;
-				memset(&recording_page, 0xFF, sizeof(recording_page));
+				LOG_ERR("Error starting servo device 1 (TIM1-CH1).");
 			}
 
-            struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
-            float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
-
-            if(current_page_idx % 10 == 0) {
-                LOG_INF("Altitude: %ld", (int32_t) alt);
-            }
-
-            if (payload_state == PAYLOAD_STATE_ASCEND) {
-                if (alt > peak_altitude) {
-                    peak_altitude = alt;
-                } else if (alt < peak_altitude - PAYLOAD_APOGEE_MARGIN_M) {
-                    LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.", (int)peak_altitude);
-                    payload_state = PAYLOAD_STATE_DESCEND;
-                }
-            } else if (payload_state == PAYLOAD_STATE_DESCEND) {
-                if (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M) {
-                    land_hold_count++;
-                } else {
-                    land_hold_count = 0;
-                }
-
-                if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES) {
-                    LOG_INF("Landing detected!");
-                    
-                    if (page_sample_idx > 0) {
-                        if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *)&recording_page, sizeof(recording_page), 0)) {
-                            LOG_ERR("Flash write error at page %lu", current_page_idx);
-                        }
-                        
-                        current_page_idx++;
-                    }
-                    
-                    payload_terminate_recording();
-                }
-            }
+			if (servo_start(&servo_dev2))
+			{
+				LOG_ERR("Error starting servo device 2 (TIM1-CH2).");
+			}
 		}
 	}
-	else
-	{
-		payload_terminate_recording();
-	}
-
 	return;
 }
 
 void payload_terminate_recording(void)
 {
-    LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", current_page_idx);
-    led_state = LED_OFF;
-    HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
-    payload_state = PAYLOAD_STATE_DONE;
+	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.",
+	        current_page_idx);
+	led_state = LED_OFF;
+	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+	payload_state = PAYLOAD_STATE_DONE;
 
-    HAL_SuspendTick();
-    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+	HAL_SuspendTick();
+	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+}
+
+void payload_handle_log(void)
+{
+	if (current_page_idx % 25 == 0)
+	{
+		LOG_DBG("Recording page %lu", current_page_idx);
+	}
+
+	struct payload_sample s = { 0 };
+	if (sensor_io_sample(&s) == 0)
+	{
+		recording_page.samples[page_sample_idx++] = s;
+
+		if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE)
+		{
+			if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *) &recording_page,
+			                    sizeof(recording_page), 0))
+			{
+				LOG_ERR("Flash write error at page %lu", current_page_idx);
+			}
+			current_page_idx++;
+			page_sample_idx = 0;
+			memset(&recording_page, 0xFF, sizeof(recording_page));
+		}
+
+		struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
+		float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
+
+		if (current_page_idx % 10 == 0)
+		{
+			LOG_DBG("Altitude: %ld", (int32_t) alt);
+		}
+
+		if (payload_state == PAYLOAD_STATE_ASCEND)
+		{
+			if (alt > peak_altitude)
+			{
+				peak_altitude = alt;
+			}
+			else if (alt < peak_altitude - PAYLOAD_APOGEE_MARGIN_M)
+			{
+				LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.",
+				        (int) peak_altitude);
+				payload_state = PAYLOAD_STATE_DESCEND;
+			}
+		}
+		else if (payload_state == PAYLOAD_STATE_DESCEND)
+		{
+			if (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M)
+			{
+				land_hold_count++;
+			}
+			else
+			{
+				land_hold_count = 0;
+			}
+
+			if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES)
+			{
+				LOG_INF("Landing detected!");
+
+				if (page_sample_idx > 0)
+				{
+					if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *) &recording_page,
+					                    sizeof(recording_page), 0))
+					{
+						LOG_ERR("Flash write error at page %lu", current_page_idx);
+					}
+
+					current_page_idx++;
+				}
+
+				payload_terminate_recording();
+			}
+		}
+	}
+
+	return;
 }
 
 void payload_handle_servo(void)
 {
+	struct payload_sample s = { 0 };
+	if (sensor_io_sample(&s) == 0)
+	{
+		struct sensor_value gyro_z = { 0 };
+		gyro_z.val1 = s.gyro_z_v1;
+		gyro_z.val2 = s.gyro_z_v2;
+		float gyro_z_float = sensor_value_to_float(&gyro_z);
+
+		if (gyro_z_float < -0.1)
+		{
+			LOG_INF("EXC");
+			servo_set(&servo_dev1, 30.0);
+			servo_set(&servo_dev2, 30.0);
+		}
+		else if (gyro_z_float > 0.1)
+		{
+			LOG_INF("INT");
+			servo_set(&servo_dev1, -30.0);
+			servo_set(&servo_dev2, -30.0);
+		}
+		else
+		{
+			servo_set(&servo_dev1, 0.0);
+			servo_set(&servo_dev2, 0.0);
+		}
+	}
 	return;
 }
 
@@ -269,10 +318,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 		else if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
 		{
-			payload_handle_log();
+			if (current_page_idx < hspif.PageCnt)
+			{
+				payload_handle_log();
+			}
+			else
+			{
+				payload_terminate_recording();
+			}
 		}
 	}
-	else if (htim == &htim4)
+	else if (htim == &htim4 && is_initialized)
 	{
 		payload_handle_servo();
 	}

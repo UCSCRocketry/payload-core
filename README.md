@@ -21,7 +21,7 @@ The pin assignments, and system interface assignments are as follows:
 | - | - | SWD | Serial Wire Debug port | SWCLK(PA14), SWDIO(PA13)
 | - | - | TIM2 | System Tick | - 
 | - | - | TIM3 | Blink Tick | - 
-| - | - | TIM4 | Enabled, Reserved | - 
+| - | - | TIM4 | Fin Tick | - 
 
 
 The pin configuration is set up as follows:
