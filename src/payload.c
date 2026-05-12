@@ -50,6 +50,15 @@ static uint32_t page_sample_idx = 0;
 static float peak_altitude = 0.0f;
 static uint32_t land_hold_count = 0;
 
+#define LOWER_P_LIMIT -1
+#define UPPER_P_LIMIT 1
+#define LOWER_I_LIMIT -10000
+#define UPPER_I_LIMIT 10000
+#define LOWER_D_LIMIT -0.1
+#define UPPER_D_LIMIT 0.1
+#define LOWER_TOTAL_LIMIT -0.209
+#define UPPER_TOTAL_LIMIT 0.209
+
 // Sets up the payload system
 void payload_run(void)
 {
@@ -273,35 +282,77 @@ void payload_handle_log(void)
 	return;
 }
 
-void payload_handle_servo(void)
-{
+float payload_handle_servo(void)
+{ //change function to proportional controller (reference CorpoPorgramma.c Controller function)
 	struct payload_sample s = { 0 };
-	if (sensor_io_sample(&s) == 0)
-	{
-		struct sensor_value gyro_z = { 0 };
-		gyro_z.val1 = s.gyro_z_v1;
-		gyro_z.val2 = s.gyro_z_v2;
-		float gyro_z_float = sensor_value_to_float(&gyro_z);
 
-		if (gyro_z_float < -0.1)
-		{
-			LOG_INF("EXC");
-			servo_set(&servo_dev1, 30.0);
-			servo_set(&servo_dev2, 30.0);
-		}
-		else if (gyro_z_float > 0.1)
-		{
-			LOG_INF("INT");
-			servo_set(&servo_dev1, -30.0);
-			servo_set(&servo_dev2, -30.0);
-		}
-		else
-		{
-			servo_set(&servo_dev1, 0.0);
-			servo_set(&servo_dev2, 0.0);
-		}
-	}
-	return;
+	float setpoint_error = 0; //current tracking error
+	float prev_error = 0; //error from previous step (for derivative term)
+	float Kp = 0.7; //temporary value for maximum anticipated disturbance encountered
+	float Ki = 0.3; //
+	float Kd = 0.08; //temporary value for characteristic time of actuator
+	float P; //proportional term
+	float I; //accunulated integral term
+	float D; //derivative term
+	float i_inst = 0; //instantaneous integral contribution
+	float out; //controller output
+
+	P = setpoint_error * Kp;
+	if (P < LOWER_P_LIMIT) P = LOWER_P_LIMIT;
+	if (P > UPPER_P_LIMIT) P = UPPER_P_LIMIT;
+
+	// if (sensor_io_sample(&s) == 0)
+	// {
+	// 	struct sensor_value gyro_z = { 0 };
+	// 	gyro_z.val1 = s.gyro_z_v1;
+	// 	gyro_z.val2 = s.gyro_z_v2;
+	// 	float gyro_z_float = sensor_value_to_float(&gyro_z);
+
+	// 	if (gyro_z_float < -0.1)
+	// 	{
+	// 		LOG_INF("EXC");
+	// 		servo_set(&servo_dev1, 30.0);
+	// 		servo_set(&servo_dev2, 30.0);
+	// 	}
+	// 	else if (gyro_z_float > 0.1)
+	// 	{
+	// 		LOG_INF("INT");
+	// 		servo_set(&servo_dev1, -30.0);
+	// 		servo_set(&servo_dev2, -30.0);
+	// 	}
+	// 	else
+	// 	{
+	// 		servo_set(&servo_dev1, 0.0);
+	// 		servo_set(&servo_dev2, 0.0);
+	// 	}
+	// }
+
+	
+	if (Ki > 0) {
+		i_inst = setpoint_error * Ki;
+		//Anti-windup: only accumulate the integral when the output is not saturated
+		if ((out > LOWER_TOTAL_LIMIT) && (out < UPPER_TOTAL_LIMIT)) {
+            I += i_inst;
+        }
+        if (I < LOWER_I_LIMIT) I = LOWER_I_LIMIT;
+        if (I > UPPER_I_LIMIT) I = UPPER_I_LIMIT;
+    } else {
+        I = 0;
+    }
+	
+	if (Kd > 0) {
+        D = Kd * (setpoint_error - prev_error);
+        prev_error = setpoint_error;
+        if (D < LOWER_D_LIMIT) D = LOWER_D_LIMIT;
+        if (D > UPPER_D_LIMIT) D = UPPER_D_LIMIT;
+    } else {
+        D = 0;
+    }
+
+	out = P + I + D;
+	if (out < LOWER_TOTAL_LIMIT) out = LOWER_TOTAL_LIMIT;
+	if (out > UPPER_TOTAL_LIMIT) out = UPPER_TOTAL_LIMIT;
+	return out;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
