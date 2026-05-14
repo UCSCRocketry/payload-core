@@ -285,13 +285,11 @@ void payload_handle_servo(void)
 
 		if (gyro_z_float < -0.1)
 		{
-			LOG_INF("EXC");
 			servo_set(&servo_dev1, 30.0);
 			servo_set(&servo_dev2, 30.0);
 		}
 		else if (gyro_z_float > 0.1)
 		{
-			LOG_INF("INT");
 			servo_set(&servo_dev1, -30.0);
 			servo_set(&servo_dev2, -30.0);
 		}

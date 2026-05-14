@@ -10,7 +10,7 @@ int sdhc_init(struct sdhc_spi_device *dev)
 	struct sdhc_command cmd = { 0 };
 	int data_present = 0;
 	int ret;
-	uint8_t attempts;
+	uint16_t attempts;
 
     /// Ensure SPI baud rate during startup is below 400 kHz
     ret = sdhc_spi_set_frequency(hspi, 400000);
