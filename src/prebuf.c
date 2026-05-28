@@ -13,9 +13,9 @@
  *
  * @param s Pointer to the sample to push.
  */
-void prebuf_push(struct prebuf *pb, const struct payload_sample *s)
+void prebuf_push(struct prebuf *pb, const struct payload_sensor_sample *s)
 {
-	struct payload_sample *prebuf_arr = pb->prebuf;
+	struct payload_sensor_sample *prebuf_arr = pb->prebuf;
 	uint32_t write_idx = (pb->head + pb->count) % PAYLOAD_PREBUF_DEPTH;
 	prebuf_arr[write_idx] = *s;
 	if (pb->count < PAYLOAD_PREBUF_DEPTH)
@@ -36,7 +36,7 @@ void prebuf_push(struct prebuf *pb, const struct payload_sample *s)
  */
 uint32_t prebuf_flush(struct prebuf *pb, SPIF_HandleTypeDef *spif)
 {
-	struct payload_sample *prebuf_arr = pb->prebuf;
+	struct payload_sensor_sample *prebuf_arr = pb->prebuf;
 	struct payload_page page;
 	uint32_t page_idx = 0;
 

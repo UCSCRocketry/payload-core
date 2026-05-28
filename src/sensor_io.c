@@ -10,6 +10,8 @@
 #include "../lib/common/sensor.h"
 #include "../lib/common/log.h"
 
+#define __SENSOR_IO_IMU_DISABLE__
+
 static struct bmp388_config bmp_cfg;
 static struct bmp388_data bmp_dat;
 static struct bmp388_device bmp_dev = { .config = &bmp_cfg, .data = &bmp_dat };
@@ -26,6 +28,7 @@ static struct lsm9ds1_device imu_dev = { .config = &imu_cfg, .data = &imu_dat };
  */
 int sensor_io_init(SPI_HandleTypeDef *hspi_bmp, SPI_HandleTypeDef *hspi_imu)
 {
+#ifndef __SENSOR_IO_ALT_DISABLE__
 	// Init BMP388
 	bmp_cfg.hspi = hspi_bmp;
 	if (bmp388_init(&bmp_dev) != 0)
@@ -34,7 +37,9 @@ int sensor_io_init(SPI_HandleTypeDef *hspi_bmp, SPI_HandleTypeDef *hspi_imu)
 		return -1;
 	}
 	LOG_INF("Sensor IO: BMP388 OK");
+#endif
 
+#ifndef __SENSOR_IO_IMU_DISABLE__
 	// Init LSM9DS1
 	lsm9ds1_ctx_init_imu(&imu_cfg.ctx, hspi_imu);
 	imu_cfg.accel_range = LSM9DS1_4g;
@@ -46,6 +51,7 @@ int sensor_io_init(SPI_HandleTypeDef *hspi_bmp, SPI_HandleTypeDef *hspi_imu)
 		return -1;
 	}
 	LOG_INF("Sensor IO: LSM9DS1 OK");
+#endif
 
 	return 0;
 }
@@ -55,7 +61,7 @@ int sensor_io_init(SPI_HandleTypeDef *hspi_bmp, SPI_HandleTypeDef *hspi_imu)
  * @param s Pointer to sample.
  * @return 0 on success, else failure.
  */
-int sensor_io_sample(struct payload_sample *s)
+int sensor_io_sample(struct payload_sensor_sample *s)
 {
 	struct sensor_value accel[3] = { 0 };
 	struct sensor_value gyro[3] = { 0 };
@@ -63,12 +69,15 @@ int sensor_io_sample(struct payload_sample *s)
 
 	s->timestamp_ms = (uint64_t) HAL_GetTick();
 
+#ifndef __SENSOR_IO_ALT_DISABLE__
 	if (bmp388_sample_fetch(&bmp_dev) || bmp388_channel_get(&bmp_dev, SENSOR_CHAN_PRESS, &press))
 	{
 		LOG_WRN("Sensor IO: BMP388 sample failed");
 		return -1;
 	}
+#endif
 
+#ifndef __SENSOR_IO_IMU_DISABLE__
 	if (lsm9ds1_sample_fetch_accel(&imu_dev)
 	    || lsm9ds1_accel_channel_get(SENSOR_CHAN_ACCEL_XYZ, accel, &imu_dat))
 	{
@@ -82,21 +91,15 @@ int sensor_io_sample(struct payload_sample *s)
 		LOG_WRN("Sensor IO: LSM9DS1 gyro sample failed");
 		return -1;
 	}
+#endif
+
 
 	s->pressure_v1 = press.val1;
 	s->pressure_v2 = press.val2;
-	s->accel_x_v1 = accel[0].val1;
-	s->accel_x_v2 = accel[0].val2;
-	s->accel_y_v1 = accel[1].val1;
-	s->accel_y_v2 = accel[1].val2;
 	s->accel_z_v1 = accel[2].val1;
 	s->accel_z_v2 = accel[2].val2;
-	s->gyro_x_v1 = gyro[0].val1;
-	s->gyro_x_v2 = gyro[0].val2;
-	s->gyro_y_v1 = gyro[1].val1;
-	s->gyro_y_v2 = gyro[1].val2;
-	s->gyro_z_v1 = gyro[2].val1;
-	s->gyro_z_v2 = gyro[2].val2;
+	s->ang_v_z_v1 = gyro[2].val1;
+	s->ang_v_z_v2 = gyro[2].val2;
 
 	return 0;
 }

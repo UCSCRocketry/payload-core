@@ -14,12 +14,12 @@
 
 struct prebuf
 {
-	struct payload_sample prebuf[PREBUF_DEPTH];
+	struct payload_sensor_sample prebuf[PREBUF_DEPTH];
 	uint32_t head;
 	uint32_t count;
 };
 
-void prebuf_push(struct prebuf *pb, const struct payload_sample *s);
+void prebuf_push(struct prebuf *pb, const struct payload_sensor_sample *s);
 
 uint32_t prebuf_flush(struct prebuf *pb, SPIF_HandleTypeDef *spif);
 

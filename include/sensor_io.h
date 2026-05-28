@@ -12,7 +12,7 @@
 
 int sensor_io_init(SPI_HandleTypeDef *hspi_bmp, SPI_HandleTypeDef *hspi_imu);
 
-int sensor_io_sample(struct payload_sample *s);
+int sensor_io_sample(struct payload_sensor_sample *s);
 
 float sensor_io_press_baseline(int num_samples);
 

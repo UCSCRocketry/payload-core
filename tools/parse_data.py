@@ -15,13 +15,13 @@ PAGE_SIZE = SAMPLE_SIZE * SAMPLES_PER_PAGE # 256
 
 CSV_HEADER = [
     "timestamp_ms",
-    "pressure_kPa",
-    "accel_x_ms2",
-    "accel_y_ms2",
+    "rawPressure_kPa",
+    "fin1Pos_rad",
+    "fin2Pos_rad",
     "accel_z_ms2",
-    "gyro_x_rads",
-    "gyro_y_rads",
-    "gyro_z_rads",
+    "vel_z_ms",
+    "angA_z_rads2",
+    "angV_z_rads",
 ]
 
 

@@ -115,10 +115,12 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start_IT(&htim4);
 
-	payload_run();
+	payload_setup();
 
 	while (1)
-		;
+	{
+		payload_poll();
+	}
 }
 
 /**

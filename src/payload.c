@@ -32,15 +32,18 @@ extern TIM_HandleTypeDef htim4; // Timer 4 peripheral (Servo)
 
 extern SPIF_HandleTypeDef hspif; // SPI flash device
 
-extern struct servo_device servo_dev1;
-extern struct servo_device servo_dev2;
+extern struct servo_device servo_dev1; // Servo 1
+extern struct servo_device servo_dev2; // Servo 2
 
 extern enum led_state_e led_state;
 
 /* Private Variables -----------------------------------------------*/
 static bool is_initialized = false;
+static volatile bool payload_run_pending = false;
 
 static volatile enum payload_state_e payload_state = PAYLOAD_STATE_INIT;
+static struct payload_avionics_state avionics_state = { 0 };
+static struct payload_sensor_sample sensor_sample = { 0 };
 
 struct prebuf pb = { 0 };
 static float baseline_pressure = 0.0f;
@@ -50,10 +53,21 @@ static uint32_t page_sample_idx = 0;
 static float peak_altitude = 0.0f;
 static uint32_t land_hold_count = 0;
 
-// Sets up the payload system
-void payload_run(void)
+static inline void payload_print_dbg(const struct payload_sensor_sample *s);
+
+
+/**
+ * @brief Sets up the payload system.
+ *
+ * Handles the initial regular function/erase flash/dump flash
+ * decision at the payload start. Initializes the sensors and 
+ * takes baseline pressure.
+ *
+ * @return void
+ */
+void payload_setup(void)
 {
-	// Press button to dump
+	// Press button to dump or erase
 	if (button_pressed())
 	{
 		for (uint8_t i = 0; i < 10; i++)
@@ -88,10 +102,6 @@ void payload_run(void)
 	}
 cancel_erase:
 
-	// Wait 5 seconds as a buffer between dump sensitive and arm sensitive button
-	LOG_INF("Waiting 5 s...");
-	HAL_Delay(5000);
-
 	// Press button to arm
 	while (!button_pressed())
 	{
@@ -119,6 +129,11 @@ cancel_erase:
 	return;
 }
 
+/**
+ * @brief Handles the LED blink based on LED state
+ *
+ * @return void
+ */
 void payload_handle_LED(void)
 {
 	switch (led_state)
@@ -141,9 +156,14 @@ void payload_handle_LED(void)
 	return;
 }
 
+/**
+ * @brief Handles the prelog function before flight
+ *
+ * @return void
+ */
 void payload_handle_prelog(void)
 {
-	struct payload_sample s = { 0 };
+	struct payload_sensor_sample s = { 0 };
 	if (sensor_io_sample(&s) == 0)
 	{
 		prebuf_push(&pb, &s);
@@ -160,7 +180,7 @@ void payload_handle_prelog(void)
 		if (launched)
 		{
 			LOG_INF("Launch detected! Alt ~%d m", (int) alt);
-			current_page_idx = prebuf_flush(&pb, &hspif);
+			current_page_idx = 0;
 
 			led_state = LED_ON;
 			LOG_DBG("Recording: starting at page %lu / %lu", current_page_idx, hspif.PageCnt);
@@ -182,6 +202,11 @@ void payload_handle_prelog(void)
 	return;
 }
 
+/**
+ * @brief Terminates the recording and suspends the system.
+ *
+ * @return void
+ */
 void payload_terminate_recording(void)
 {
 	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.",
@@ -194,114 +219,277 @@ void payload_terminate_recording(void)
 	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 }
 
+/**
+ * @brief Handles the logging function during flight.
+ *
+ * @return void
+ */
 void payload_handle_log(void)
 {
-	if (current_page_idx % 25 == 0)
-	{
-		LOG_DBG("Recording page %lu", current_page_idx);
+	// Copy sample from the vehicle data
+	struct payload_sensor_sample s = sensor_sample;
+	recording_page.samples[page_sample_idx++] = s;
+
+	// If the SPIF page is full, flush the data, otherwise move on
+	if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE)
+	{	
+		if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *) &recording_page,
+		                    sizeof(recording_page), 0))
+		{
+			LOG_ERR("Flash write error at page %lu", current_page_idx);
+		}
+		current_page_idx++;
+		page_sample_idx = 0;
+		memset(&recording_page, 0xFF, sizeof(recording_page));
 	}
 
-	struct payload_sample s = { 0 };
-	if (sensor_io_sample(&s) == 0)
+	// Calculate altitude from pressure data
+	struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
+	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
+
+	// Handle state machine
+	if (payload_state == PAYLOAD_STATE_ASCEND)
 	{
-		recording_page.samples[page_sample_idx++] = s;
-
-		if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE)
+		if (alt > peak_altitude)
 		{
-			if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *) &recording_page,
-			                    sizeof(recording_page), 0))
-			{
-				LOG_ERR("Flash write error at page %lu", current_page_idx);
-			}
-			current_page_idx++;
-			page_sample_idx = 0;
-			memset(&recording_page, 0xFF, sizeof(recording_page));
+			peak_altitude = alt;
 		}
-
-		struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
-		float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
-
-		if (current_page_idx % 10 == 0)
+		else if (alt < peak_altitude - PAYLOAD_APOGEE_MARGIN_M)
 		{
-			LOG_DBG("Altitude: %ld", (int32_t) alt);
+			LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.",
+			        (int) peak_altitude);
+			payload_state = PAYLOAD_STATE_DESCEND;
 		}
+	}
+	else if (payload_state == PAYLOAD_STATE_DESCEND)
+	{
+		// Keep a count of how long payload is under landing altitude threshold.
+		land_hold_count = (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M) ? (land_hold_count + 1) :
+						  (0);
 
-		if (payload_state == PAYLOAD_STATE_ASCEND)
+		// If payload senses it has been under landing alt threshold for long
+		// enough a time, it will go into landing mode and terminate recording.
+		if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES)
 		{
-			if (alt > peak_altitude)
-			{
-				peak_altitude = alt;
-			}
-			else if (alt < peak_altitude - PAYLOAD_APOGEE_MARGIN_M)
-			{
-				LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.",
-				        (int) peak_altitude);
-				payload_state = PAYLOAD_STATE_DESCEND;
-			}
-		}
-		else if (payload_state == PAYLOAD_STATE_DESCEND)
-		{
-			if (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M)
-			{
-				land_hold_count++;
-			}
-			else
-			{
-				land_hold_count = 0;
-			}
+			LOG_INF("Landing detected!");
 
-			if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES)
+			if (page_sample_idx > 0)
 			{
-				LOG_INF("Landing detected!");
-
-				if (page_sample_idx > 0)
+				if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *) &recording_page,
+				                    sizeof(recording_page), 0))
 				{
-					if (!SPIF_WritePage(&hspif, current_page_idx, (uint8_t *) &recording_page,
-					                    sizeof(recording_page), 0))
-					{
-						LOG_ERR("Flash write error at page %lu", current_page_idx);
-					}
-
-					current_page_idx++;
+					LOG_ERR("Flash write error at page %lu", current_page_idx);
 				}
 
-				payload_terminate_recording();
+				current_page_idx++;
 			}
+
+			payload_terminate_recording();
 		}
 	}
+
 
 	return;
 }
 
+/**
+ * @brief Handles the fin actuation.
+ *
+ * @return void
+ */
 void payload_handle_servo(void)
 {
-	struct payload_sample s = { 0 };
-	if (sensor_io_sample(&s) == 0)
-	{
-		struct sensor_value gyro_z = { 0 };
-		gyro_z.val1 = s.gyro_z_v1;
-		gyro_z.val2 = s.gyro_z_v2;
-		float gyro_z_float = sensor_value_to_float(&gyro_z);
+	float roll_rate = avionics_state.v_ang;
 
-		if (gyro_z_float < -0.1)
+	if (roll_rate < -0.1f)
+	{
+		servo_set(&servo_dev1, 30.0);
+		servo_set(&servo_dev2, 30.0);
+	}
+	else if (roll_rate > 0.1f)
+	{
+		servo_set(&servo_dev1, -30.0);
+		servo_set(&servo_dev2, -30.0);
+	}
+	else
+	{
+		servo_set(&servo_dev1, 0.0);
+		servo_set(&servo_dev2, 0.0);
+	}
+	return;
+}
+
+/**
+ * @brief Performs Kalman filter and updates the state.
+ *
+ * Adapted from https://github.com/Newaysfactory/RocketRollControlSystem/
+ *
+ * @param vehicle_state The current vehicle state.
+ * @param input_samples The samples to calculate the next vehicle state
+ * @return void
+ */
+// Kalman filter: 
+void payload_kalman(struct payload_avionics_state *vehicle_state, struct payload_sensor_sample *input_samples)
+{
+	struct sensor_value gyroz_val = { 0 };
+	struct sensor_value accelz_val = { 0 };
+	struct sensor_value press_val = { 0 };
+	float alt;
+
+    float baro_in_meters;
+	float acc_in_ms2;
+	float p_in_rad_s;
+	float x_pred;
+	float v_pred;
+	float a_pred;
+	float v_ang_pred;
+	float a_ang_pred;
+
+	// Get values and altitude
+	gyroz_val.val1 = input_samples->ang_v_z_v1;
+	gyroz_val.val2 = input_samples->ang_v_z_v2;
+	accelz_val.val1 = input_samples->accel_z_v1;
+	accelz_val.val2 = input_samples->accel_z_v2;
+	press_val.val1 = input_samples->pressure_v1;
+	press_val.val2 = input_samples->pressure_v2;
+
+	alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&press_val));
+
+    //--- VERTICAL TRAJECTORY SECTION ---
+
+    baro_in_meters = PAYLOAD_FEET_TO_METERS_CONV * alt;
+    acc_in_ms2 = sensor_value_to_float(&accelz_val);
+
+    //Kalman prediction step
+    x_pred = vehicle_state->x + (vehicle_state->v * PAYLOAD_PHI_VERTICAL_12_S) + (vehicle_state->a * PAYLOAD_PHI_VERTICAL_13_S);
+    v_pred = vehicle_state->v + (vehicle_state->a * PAYLOAD_PHI_VERTICAL_23_S);
+    a_pred = vehicle_state->a;
+
+    //Kalman correction step (two measurements: barometer and accelerometer)
+    vehicle_state->x = x_pred + (PAYLOAD_K11_VERTICAL * (baro_in_meters - x_pred)) + (PAYLOAD_K12_VERTICAL * (acc_in_ms2 - a_pred));
+    vehicle_state->v = v_pred + (PAYLOAD_K21_VERTICAL * (baro_in_meters - x_pred)) + (PAYLOAD_K22_VERTICAL * (acc_in_ms2 - a_pred));
+    vehicle_state->a = a_pred + (PAYLOAD_K31_VERTICAL * (baro_in_meters - x_pred)) + (PAYLOAD_K32_VERTICAL * (acc_in_ms2 - a_pred));
+
+    //--- ROLL SECTION ---
+
+    p_in_rad_s = sensor_value_to_float(&gyroz_val) - 0.0;
+
+    //Kalman prediction step
+    v_ang_pred = vehicle_state->v_ang + vehicle_state->a_ang * PAYLOAD_PHI_ROLL_11_S;
+    a_ang_pred = vehicle_state->a_ang;
+
+    //Kalman correction step (single measurement: gyro Z-axis)
+    vehicle_state->v_ang = v_ang_pred + PAYLOAD_K1_ROLL * (p_in_rad_s - v_ang_pred);
+    vehicle_state->a_ang = a_ang_pred + PAYLOAD_K2_ROLL * (p_in_rad_s - v_ang_pred);
+
+	return;
+}
+
+/**
+ * @brief Prints debug information about the system.
+ *
+ * @return void
+ */
+static inline void payload_print_dbg(const struct payload_sensor_sample *s)
+{
+	LOG_RAW("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld",
+	        (unsigned long) s->timestamp_ms,
+	        s->pressure_v1, s->pressure_v2,
+	        s->fin1_pos_v1, s->fin1_pos_v2,
+	        s->fin2_pos_v1, s->fin2_pos_v2,
+	        s->accel_z_v1, s->accel_z_v2,
+	        s->velocity_z_v1, s->velocity_z_v2,
+	        s->ang_a_z_v1, s->ang_a_z_v2,
+	        s->ang_v_z_v1, s->ang_v_z_v2);
+}
+
+/**
+ * @brief Runs the main functions of the payload.
+ *
+ * Designed to be called at 100 Hz.
+ *
+ * @return void
+ */
+static void payload_run(void)
+{
+	// Get raw data from the sensors
+	if (sensor_io_sample(&sensor_sample))
+	{
+		Error_Handler();
+	}
+
+
+	// Use sensor data to update the vehicle state
+	payload_kalman(&avionics_state, &sensor_sample);
+	
+	// Write Kalman outputs back into vehicle_sample
+	sensor_sample.velocity_z_v1 = (int32_t) avionics_state.v;
+	sensor_sample.velocity_z_v2 = (int32_t) ((avionics_state.v - (int32_t) avionics_state.v) * 1000000.0f);
+	sensor_sample.ang_a_z_v1 = (int32_t) avionics_state.a_ang;
+	sensor_sample.ang_a_z_v2 = (int32_t) ((avionics_state.a_ang - (int32_t) avionics_state.a_ang) * 1000000.0f);
+	sensor_sample.ang_v_z_v1 = (int32_t) avionics_state.v_ang;
+	sensor_sample.ang_v_z_v2 = (int32_t) ((avionics_state.v_ang - (int32_t) avionics_state.v_ang) * 1000000.0f);
+
+	// Handle fin control
+	if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
+	{
+		payload_handle_servo();
+		// Read actual fin positions (ADC feedback) into vehicle_sample
+		float fin_pos;
+		if (servo_read(&servo_dev1, &fin_pos) == 0)
 		{
-			servo_set(&servo_dev1, 30.0);
-			servo_set(&servo_dev2, 30.0);
+			float fin_rad = fin_pos * (3.14159265f / 180.0f);
+			sensor_sample.fin1_pos_v1 = (int32_t) fin_rad;
+			sensor_sample.fin1_pos_v2 = (int32_t) ((fin_rad - (int32_t) fin_rad) * 1000000.0f);
 		}
-		else if (gyro_z_float > 0.1)
+		if (servo_read(&servo_dev2, &fin_pos) == 0)
 		{
-			servo_set(&servo_dev1, -30.0);
-			servo_set(&servo_dev2, -30.0);
+			float fin_rad = fin_pos * (3.14159265f / 180.0f);
+			sensor_sample.fin2_pos_v1 = (int32_t) fin_rad;
+			sensor_sample.fin2_pos_v2 = (int32_t) ((fin_rad - (int32_t) fin_rad) * 1000000.0f);
+		}
+	}
+
+	// Do Logging
+	if (payload_state == PAYLOAD_STATE_PRELAUNCH)
+	{
+		payload_handle_prelog();
+	}
+	else if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
+	{
+		if (current_page_idx < hspif.PageCnt)
+		{
+			payload_handle_log();
 		}
 		else
 		{
-			servo_set(&servo_dev1, 0.0);
-			servo_set(&servo_dev2, 0.0);
+			payload_terminate_recording();
 		}
 	}
-	return;
 }
 
+/**
+ * @brief Called from the main loop to execute the 100 Hz control cycle.
+ *
+ * Avoids calling SysTick dependent functions within TIM interrupt context.
+ *
+ * @return void
+ */
+void payload_poll(void)
+{
+	if (payload_run_pending)
+	{
+		payload_run_pending = false;
+		payload_run();
+	}
+}
+
+/**
+ * @brief TIM period elapsed interrupt callback.
+ *
+ * @param htim The timer that called the interrupt.
+ * @return void
+ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim == &htim3)
@@ -310,24 +498,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 	else if (htim == &htim2 && is_initialized)
 	{
-		if (payload_state == PAYLOAD_STATE_PRELAUNCH)
-		{
-			payload_handle_prelog();
-		}
-		else if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
-		{
-			if (current_page_idx < hspif.PageCnt)
-			{
-				payload_handle_log();
-			}
-			else
-			{
-				payload_terminate_recording();
-			}
-		}
+		
 	}
-	else if (htim == &htim4 && is_initialized)
+	else if (htim == &htim4 && is_initialized) // Every 100 Hz
 	{
-		payload_handle_servo();
+		payload_run_pending = true;
 	}
 }
