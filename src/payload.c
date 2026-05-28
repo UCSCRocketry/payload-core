@@ -53,7 +53,8 @@ static uint32_t page_sample_idx = 0;
 static float peak_altitude = 0.0f;
 static uint32_t land_hold_count = 0;
 
-static inline void payload_print_dbg(const struct payload_sensor_sample *s);
+/* Private Functions -----------------------------------------------*/
+static void payload_terminate_recording(void);
 
 
 /**
@@ -115,7 +116,6 @@ cancel_erase:
 	{
 		Error_Handler();
 	}
-	is_initialized = true;
 
 	// Take baseline pressure
 	LOG_DBG("Sampling baseline pressure (%d readings)...", PAYLOAD_BASELINE_SAMPLES);
@@ -125,48 +125,21 @@ cancel_erase:
 
 	LOG_INF("Pre-launch buffer active. Threshold: %d m", (int) PAYLOAD_LAUNCH_ALT_THRESHOLD_M);
 
+	is_initialized = true;
 	payload_state = PAYLOAD_STATE_PRELAUNCH;
 	return;
 }
 
 /**
- * @brief Handles the LED blink based on LED state
+ * @brief Handles the preflight functions (landing det)
  *
  * @return void
  */
-void payload_handle_LED(void)
-{
-	switch (led_state)
-	{
-	case LED_ON:
-		HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
-		break;
-	case LED_BLINK_SLOW:
-		__HAL_TIM_SET_AUTORELOAD(&htim3, 0xFFFF);
-		HAL_GPIO_TogglePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin);
-		break;
-	case LED_BLINK_FAST:
-		__HAL_TIM_SET_AUTORELOAD(&htim3, 0x5555);
-		HAL_GPIO_TogglePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin);
-		break;
-	default: // LED_OFF
-		HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
-		break;
-	}
-	return;
-}
-
-/**
- * @brief Handles the prelog function before flight
- *
- * @return void
- */
-void payload_handle_prelog(void)
+void payload_handle_preflight(void)
 {
 	struct payload_sensor_sample s = { 0 };
 	if (sensor_io_sample(&s) == 0)
 	{
-		prebuf_push(&pb, &s);
 		struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
 		float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
 
@@ -180,12 +153,14 @@ void payload_handle_prelog(void)
 		if (launched)
 		{
 			LOG_INF("Launch detected! Alt ~%d m", (int) alt);
-			current_page_idx = 0;
-
 			led_state = LED_ON;
+
 			LOG_DBG("Recording: starting at page %lu / %lu", current_page_idx, hspif.PageCnt);
-			memset(&recording_page, 0xFF, sizeof(recording_page));
+
+			current_page_idx = 0;
 			page_sample_idx = 0;
+			memset(&recording_page, 0xFF, sizeof(recording_page));
+			
 			payload_state = PAYLOAD_STATE_ASCEND;
 
 			if (servo_start(&servo_dev1))
@@ -200,23 +175,6 @@ void payload_handle_prelog(void)
 		}
 	}
 	return;
-}
-
-/**
- * @brief Terminates the recording and suspends the system.
- *
- * @return void
- */
-void payload_terminate_recording(void)
-{
-	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.",
-	        current_page_idx);
-	led_state = LED_OFF;
-	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
-	payload_state = PAYLOAD_STATE_DONE;
-
-	HAL_SuspendTick();
-	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 }
 
 /**
@@ -247,7 +205,7 @@ void payload_handle_log(void)
 	struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
 	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
 
-	// Handle state machine
+	// If ascending, detect descent
 	if (payload_state == PAYLOAD_STATE_ASCEND)
 	{
 		if (alt > peak_altitude)
@@ -261,7 +219,7 @@ void payload_handle_log(void)
 			payload_state = PAYLOAD_STATE_DESCEND;
 		}
 	}
-	else if (payload_state == PAYLOAD_STATE_DESCEND)
+	else if (payload_state == PAYLOAD_STATE_DESCEND) // If descending, detect landing
 	{
 		// Keep a count of how long payload is under landing altitude threshold.
 		land_hold_count = (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M) ? (land_hold_count + 1) :
@@ -290,6 +248,23 @@ void payload_handle_log(void)
 
 
 	return;
+}
+
+/**
+ * @brief Terminates the recording and suspends the system.
+ *
+ * @return void
+ */
+static void payload_terminate_recording(void)
+{
+	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.",
+	        current_page_idx);
+	led_state = LED_OFF;
+	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+	payload_state = PAYLOAD_STATE_DONE;
+
+	HAL_SuspendTick();
+	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 }
 
 /**
@@ -386,24 +361,6 @@ void payload_kalman(struct payload_avionics_state *vehicle_state, struct payload
 }
 
 /**
- * @brief Prints debug information about the system.
- *
- * @return void
- */
-static inline void payload_print_dbg(const struct payload_sensor_sample *s)
-{
-	LOG_RAW("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld",
-	        (unsigned long) s->timestamp_ms,
-	        s->pressure_v1, s->pressure_v2,
-	        s->fin1_pos_v1, s->fin1_pos_v2,
-	        s->fin2_pos_v1, s->fin2_pos_v2,
-	        s->accel_z_v1, s->accel_z_v2,
-	        s->velocity_z_v1, s->velocity_z_v2,
-	        s->ang_a_z_v1, s->ang_a_z_v2,
-	        s->ang_v_z_v1, s->ang_v_z_v2);
-}
-
-/**
  * @brief Runs the main functions of the payload.
  *
  * Designed to be called at 100 Hz.
@@ -417,7 +374,6 @@ static void payload_run(void)
 	{
 		Error_Handler();
 	}
-
 
 	// Use sensor data to update the vehicle state
 	payload_kalman(&avionics_state, &sensor_sample);
@@ -453,7 +409,7 @@ static void payload_run(void)
 	// Do Logging
 	if (payload_state == PAYLOAD_STATE_PRELAUNCH)
 	{
-		payload_handle_prelog();
+		payload_handle_preflight();
 	}
 	else if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
 	{
@@ -494,7 +450,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim == &htim3)
 	{
-		payload_handle_LED();
+		switch (led_state)
+		{
+		case LED_ON:
+			HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_RESET);
+			break;
+		case LED_BLINK_SLOW:
+			__HAL_TIM_SET_AUTORELOAD(&htim3, 0xFFFF);
+			HAL_GPIO_TogglePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin);
+			break;
+		case LED_BLINK_FAST:
+			__HAL_TIM_SET_AUTORELOAD(&htim3, 0x5555);
+			HAL_GPIO_TogglePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin);
+			break;
+		default: // LED_OFF
+			HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
+			break;
+		}
 	}
 	else if (htim == &htim2 && is_initialized)
 	{

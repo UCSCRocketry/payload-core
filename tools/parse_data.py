@@ -38,13 +38,13 @@ def parse_sample(data: bytes) -> dict:
 
     return {
         "timestamp_ms": ts,
-        "pressure_kPa": sv_to_float(p1, p2),
-        "accel_x_ms2": sv_to_float(ax1, ax2),
-        "accel_y_ms2": sv_to_float(ay1, ay2),
+        "rawPressure_kPa": sv_to_float(p1, p2),
+        "fin1Pos_rad": sv_to_float(ax1, ax2),
+        "fin2Pos_rad": sv_to_float(ay1, ay2),
         "accel_z_ms2": sv_to_float(az1, az2),
-        "gyro_x_rads": sv_to_float(gx1, gx2),
-        "gyro_y_rads": sv_to_float(gy1, gy2),
-        "gyro_z_rads": sv_to_float(gz1, gz2),
+        "vel_z_ms": sv_to_float(gx1, gx2),
+        "angA_z_rads2": sv_to_float(gy1, gy2),
+        "angV_z_rads": sv_to_float(gz1, gz2),
     }
 
 
