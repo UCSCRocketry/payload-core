@@ -143,11 +143,11 @@ cancel_erase:
 }
 
 /**
- * @brief Handles the preflight functions (landing det)
+ * @brief Handles the landing detection during preflight
  *
  * @return void
  */
-void payload_handle_preflight(void)
+void payload_detect_launch(void)
 {
 	struct payload_sensor_sample s = { 0 };
 	if (sensor_io_sample(&s) == 0)
@@ -194,7 +194,7 @@ void payload_handle_preflight(void)
  *
  * @return void
  */
-void payload_handle_log(void)
+void payload_record_avionics(void)
 {
 	// Copy sample from the vehicle data
 	struct payload_sensor_sample s = sensor_sample;
@@ -284,7 +284,7 @@ static void payload_terminate_recording(void)
  *
  * @return void
  */
-void payload_handle_servo(void)
+void payload_handle_controls(void)
 {
 	LOG_INF("roll rate: %f", avionics_state.v_ang);
 	float fin_rad = pid_update(&roll_pid, avionics_state.v_ang);
@@ -392,7 +392,7 @@ static void payload_run(void)
 	// Handle fin control
 	if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
 	{
-		payload_handle_servo();
+		payload_handle_controls();
 		// Read actual fin positions (ADC feedback) into vehicle_sample
 		float fin_pos;
 		if (servo_read(&servo_dev1, &fin_pos) == 0)
@@ -412,13 +412,13 @@ static void payload_run(void)
 	// Do Logging
 	if (payload_state == PAYLOAD_STATE_PRELAUNCH)
 	{
-		payload_handle_preflight();
+		payload_detect_launch();
 	}
 	else if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)
 	{
 		if (current_page_idx < hspif.PageCnt)
 		{
-			payload_handle_log();
+			payload_record_avionics();
 		}
 		else
 		{
