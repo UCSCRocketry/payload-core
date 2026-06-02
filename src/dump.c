@@ -23,14 +23,14 @@ struct sdhc_spi_device sd_dev; // SD Card device
  * @brief Dumps flash content to SD card
  *
  * Transfers data from the SPI flash chip onto a binary file on the SD card,
- * verifies the data using CRC, and formats the flash if verified.
+ * verifies the data using CRC.
  *
- * @warning This has the possibility of formatting contents of the flash chip.
+ * @warning This function does not format the flash anymore.
  *
  * @param spif Flash handle (must already be initialised).
  * @return status int
  */
-int dump_and_format_flash(SPIF_HandleTypeDef *spif)
+int dump_flash(SPIF_HandleTypeDef *spif)
 {
 	// ******** Init devices ********
 	static struct sdhc_spi_config sd_cfg = {
@@ -155,14 +155,7 @@ int dump_and_format_flash(SPIF_HandleTypeDef *spif)
 		goto unmount;
 	}
 
-	// Erase Flash
-	LOG_INF("Dump: CRC OK. Erasing flash chip...");
-	if (!SPIF_EraseChip(spif))
-	{
-		LOG_ERR("Dump: flash chip erase failed");
-		goto unmount;
-	}
-	LOG_INF("Dump: flash erased. Done.");
+	LOG_INF("Dump: CRC OK.");
 	ret = 0;
 
 unmount:

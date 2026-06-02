@@ -89,7 +89,7 @@ void payload_setup(void)
 			{
 				LOG_INF("Startup button held - dumping flash to SD card...");
 				led_state = LED_BLINK_FAST;
-				if (!dump_and_format_flash(&hspif))
+				if (!dump_flash(&hspif))
 				{
 					LOG_INF("Dump OK");
 				}

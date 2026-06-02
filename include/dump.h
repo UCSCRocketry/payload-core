@@ -8,6 +8,6 @@
 
 #include "../lib/spif/spif.h"
 
-int dump_and_format_flash(SPIF_HandleTypeDef *spif);
+int dump_flash(SPIF_HandleTypeDef *spif);
 
 #endif // __DUMP_H__
