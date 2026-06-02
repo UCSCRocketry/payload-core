@@ -807,9 +807,19 @@ int lsm9ds1_mag_range_set(const struct lsm9ds1_mag_device *dev, int32_t range)
 
 	fs = lsm9ds1_mag_range_to_fs_val(range);
 
+	if (fs < 0)
+	{
+		return fs;
+	}
+
 	ret = lsm9ds1_mag_full_scale_set(ctx, fs);
 	if (ret < 0) {
 		return ret;
+	}
+
+	if (fs < 0)
+	{
+		return fs;
 	}
 
 	data->mag_gain = lsm9ds1_mag_fs_sens[fs];

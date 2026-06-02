@@ -107,16 +107,25 @@ int servo_read(struct servo_device *dev, float *servo_pos)
 	sConfig.Rank = 1;
 	sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
 	sConfig.Offset = 0;
-	if (HAL_ADC_ConfigChannel(dev->hadc, &sConfig) != HAL_OK)
+	if (HAL_ADC_ConfigChannel(dev->hadc, &sConfig))
 	{
 		return -1;
 	}
 
 	/* Convert the Channel */
-	HAL_ADC_Start(dev->hadc);
-	HAL_ADC_PollForConversion(dev->hadc, 100);
+	if (HAL_ADC_Start(dev->hadc))
+	{
+		return -1;
+	}
+	if (HAL_ADC_PollForConversion(dev->hadc, 100))
+	{
+		return -1;
+	}
 	uint16_t adcval = HAL_ADC_GetValue(dev->hadc);
-	HAL_ADC_Stop(dev->hadc);
+	if (HAL_ADC_Stop(dev->hadc))
+	{
+		return -1;
+	}
 	// max val 3835
 	// min val 182
 	*servo_pos = 180.0 * (((float) adcval - 182.0) / (3835.0 - 182.0));

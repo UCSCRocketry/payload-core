@@ -6,7 +6,6 @@
 #include "payload.h"
 #include "kalman.h"
 #include "sensor_io.h"
-#include "prebuf.h"
 #include "dump.h"
 #include "spif.h"
 #include "../lib/bmp388/bmp388.h"
@@ -27,7 +26,7 @@ extern SPI_HandleTypeDef hspi1; // SPI flash
 extern SPI_HandleTypeDef hspi3; // BMP388 altimeter
 extern SPI_HandleTypeDef hspi4; // LSM9DS1 IMU
 
-extern TIM_HandleTypeDef htim2; // Logging timer
+extern TIM_HandleTypeDef htim2; // Unused
 extern TIM_HandleTypeDef htim3; // LED timer
 extern TIM_HandleTypeDef htim4; // 100 Hz control timer
 
@@ -52,8 +51,6 @@ static struct payload_page recording_page;
 static uint32_t page_sample_idx = 0;
 static float peak_altitude = 0.0f;
 static uint32_t land_hold_count = 0;
-
-struct prebuf pb = { 0 };
 
 static struct pid_controller roll_pid = {
 	.kp = PAYLOAD_PID_KP,

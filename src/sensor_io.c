@@ -114,15 +114,17 @@ float sensor_io_press_baseline(int num_samples)
 	float sum = 0.0f;
 	struct sensor_value v = { 0 };
 
-	for (int i = 0; i < num_samples; i++)
+	int i = 0;
+	while (i < num_samples)
 	{
 		if (bmp388_sample_fetch(&bmp_dev) == 0
 		    && bmp388_channel_get(&bmp_dev, SENSOR_CHAN_PRESS, &v) == 0)
 		{
 			sum += sensor_value_to_float(&v);
+			i++;
 		}
-		HAL_Delay(10);
+		HAL_Delay(50);
 	}
 
-	return sum / num_samples;
+	return (sum / (float) i);
 }

@@ -7,14 +7,13 @@
 #define __PREBUF_H__
 
 #include "payload.h"
+#include "payload_config.h"
 #include "../lib/spif/spif.h"
 #include <stdint.h>
 
-#define PREBUF_DEPTH 64
-
 struct prebuf
 {
-	struct payload_sensor_sample prebuf[PREBUF_DEPTH];
+	struct payload_sensor_sample prebuf[PAYLOAD_PREBUF_DEPTH];
 	uint32_t head;
 	uint32_t count;
 };

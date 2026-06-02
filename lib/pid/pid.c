@@ -22,7 +22,6 @@
 float pid_update(struct pid_controller *pid, float measurement)
 {
     float error = pid->setpoint - measurement;
-    LOG_INF("Error: %f", error);
 
     float p = pid->kp * error;
     if (p < pid->p_min) p = pid->p_min;

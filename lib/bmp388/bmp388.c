@@ -173,6 +173,7 @@ int bmp388_sample_fetch(const struct bmp388_device *dev)
 	SPI_HandleTypeDef *hspi;
 	uint8_t raw[BMP388_SAMPLE_BUFFER_SIZE] = { 0 };
 	HAL_StatusTypeDef ret;
+	int i = 0;
 
 	if (dev == NULL || dev->config == NULL || dev->data == NULL)
 	{
@@ -183,11 +184,18 @@ int bmp388_sample_fetch(const struct bmp388_device *dev)
 
 	while ((raw[0] & BMP388_STATUS_DRDY_PRESS) == 0U)
 	{
+		// Add loop cap
+		if (i > 512)
+		{
+			return -1;
+		}
+
 		ret = bmp388_spi_mem_read(hspi, BMP388_REG_STATUS, raw, 1);
 		if (ret != HAL_OK)
 		{
 			return (int) ret;
 		}
+		i++;
 	}
 
 	ret = bmp388_spi_mem_read(hspi, BMP388_REG_DATA0, raw, BMP388_SAMPLE_BUFFER_SIZE);
