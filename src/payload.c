@@ -26,7 +26,7 @@ extern SPI_HandleTypeDef hspi1; // SPI flash
 extern SPI_HandleTypeDef hspi3; // BMP388 altimeter
 extern SPI_HandleTypeDef hspi4; // LSM9DS1 IMU
 
-extern TIM_HandleTypeDef htim2; // Unused
+// extern TIM_HandleTypeDef htim2; // Unused
 extern TIM_HandleTypeDef htim3; // LED timer
 extern TIM_HandleTypeDef htim4; // 100 Hz control timer
 

@@ -817,11 +817,6 @@ int lsm9ds1_mag_range_set(const struct lsm9ds1_mag_device *dev, int32_t range)
 		return ret;
 	}
 
-	if (fs < 0)
-	{
-		return fs;
-	}
-
 	data->mag_gain = lsm9ds1_mag_fs_sens[fs];
 
 	return 0;
