@@ -163,7 +163,8 @@ static void payload_detect_launch(void)
 	}
 
 	struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
-	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
+	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur))
+	            * PAYLOAD_FEET_TO_METERS_CONV;
 
 #ifdef __PAYLOAD_TESTING__
 	int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M
@@ -210,7 +211,8 @@ static void payload_record_avionics(void)
 	}
 
 	struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
-	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur));
+	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur))
+	            * PAYLOAD_FEET_TO_METERS_CONV;
 
 	if (payload_state == PAYLOAD_STATE_ASCEND)
 	{
