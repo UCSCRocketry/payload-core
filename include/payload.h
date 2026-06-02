@@ -60,18 +60,18 @@
 //! Current values for M1/A1 combination.
 //! These values must be changed depending on the sensor used.
 //Kalman gains for vertical trajectory
-#define PAYLOAD_K11_VERTICAL 		0.0191
-#define PAYLOAD_K21_VERTICAL 		0.0117
-#define PAYLOAD_K31_VERTICAL 		0.0000
+#define PAYLOAD_K11_VERTICAL 		0.0221
+#define PAYLOAD_K21_VERTICAL 		0.0145
+#define PAYLOAD_K31_VERTICAL 		0.0001
 
 //Kalman gains for vertical trajectory (accelerometer channel)
-#define PAYLOAD_K12_VERTICAL 		0.0010
+#define PAYLOAD_K12_VERTICAL 		0.0011
 #define PAYLOAD_K22_VERTICAL 		0.0091
-#define PAYLOAD_K32_VERTICAL 		0.0704
+#define PAYLOAD_K32_VERTICAL 		0.0584
 
 //Kalman gains for roll motion
-#define PAYLOAD_K1_ROLL 			0.2363
-#define PAYLOAD_K2_ROLL 			0.6340
+#define PAYLOAD_K1_ROLL 			0.2655
+#define PAYLOAD_K2_ROLL 			0.7224
 
 //State transition matrix elements for vertical motion
 //! These are in ms, not seconds
@@ -88,6 +88,20 @@
 #define PAYLOAD_PHI_ROLL_11       	(PAYLOAD_MAIN_POLL_PERIOD_MS)
 //! These are in seconds
 #define PAYLOAD_PHI_ROLL_11_S     	((float) PAYLOAD_PHI_ROLL_11 / 1000.0f)
+
+// --- PID Controller Parameters (from RocketRollControlSystem HardwareProfile.h) ---
+#define PAYLOAD_PID_SETPOINT   0.0f     // Target roll rate (rad/s)
+#define PAYLOAD_PID_KP         0.07f    // Proportional gain
+#define PAYLOAD_PID_KI         0.016f   // Integral gain
+#define PAYLOAD_PID_KD         0.0f     // Derivative gain
+#define PAYLOAD_PID_P_MAX      1.0f
+#define PAYLOAD_PID_P_MIN     -1.0f
+#define PAYLOAD_PID_I_MAX      10000.0f
+#define PAYLOAD_PID_I_MIN     -10000.0f
+#define PAYLOAD_PID_D_MAX      0.1f
+#define PAYLOAD_PID_D_MIN     -0.1f
+#define PAYLOAD_PID_OUT_MAX    1.000f
+#define PAYLOAD_PID_OUT_MIN   -1.000f
 
 // --- Other Constants ---
 #define PAYLOAD_FEET_TO_METERS_CONV 0.3048

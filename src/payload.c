@@ -9,6 +9,7 @@
 #include "dump.h"
 #include "spif.h"
 #include "../lib/bmp388/bmp388.h"
+#include "../lib/pid/pid.h"
 #include "sensor.h"
 #include "main.h"
 #include "log.h"
@@ -52,6 +53,17 @@ static struct payload_page recording_page;
 static uint32_t page_sample_idx = 0;
 static float peak_altitude = 0.0f;
 static uint32_t land_hold_count = 0;
+
+static struct pid_controller roll_pid = {
+	.kp      = PAYLOAD_PID_KP,
+	.ki      = PAYLOAD_PID_KI,
+	.kd      = PAYLOAD_PID_KD,
+	.setpoint = PAYLOAD_PID_SETPOINT,
+	.p_min   = PAYLOAD_PID_P_MIN,   .p_max   = PAYLOAD_PID_P_MAX,
+	.i_min   = PAYLOAD_PID_I_MIN,   .i_max   = PAYLOAD_PID_I_MAX,
+	.d_min   = PAYLOAD_PID_D_MIN,   .d_max   = PAYLOAD_PID_D_MAX,
+	.out_min = PAYLOAD_PID_OUT_MIN, .out_max = PAYLOAD_PID_OUT_MAX,
+};
 
 /* Private Functions -----------------------------------------------*/
 static void payload_terminate_recording(void);
@@ -160,7 +172,7 @@ void payload_handle_preflight(void)
 			current_page_idx = 0;
 			page_sample_idx = 0;
 			memset(&recording_page, 0xFF, sizeof(recording_page));
-			
+			pid_reset(&roll_pid);
 			payload_state = PAYLOAD_STATE_ASCEND;
 
 			if (servo_start(&servo_dev1))
@@ -274,23 +286,13 @@ static void payload_terminate_recording(void)
  */
 void payload_handle_servo(void)
 {
-	float roll_rate = avionics_state.v_ang;
+	LOG_INF("roll rate: %f", avionics_state.v_ang);
+	float fin_rad = pid_update(&roll_pid, avionics_state.v_ang);
+	avionics_state.fin_angle_rad = fin_rad;
 
-	if (roll_rate < -0.1f)
-	{
-		servo_set(&servo_dev1, 30.0);
-		servo_set(&servo_dev2, 30.0);
-	}
-	else if (roll_rate > 0.1f)
-	{
-		servo_set(&servo_dev1, -30.0);
-		servo_set(&servo_dev2, -30.0);
-	}
-	else
-	{
-		servo_set(&servo_dev1, 0.0);
-		servo_set(&servo_dev2, 0.0);
-	}
+	float fin_deg = fin_rad * (180.0f / 3.14159265f);
+	servo_set(&servo_dev1, fin_deg);
+	servo_set(&servo_dev2, fin_deg);
 	return;
 }
 
@@ -354,7 +356,8 @@ void payload_kalman(struct payload_avionics_state *vehicle_state, struct payload
     a_ang_pred = vehicle_state->a_ang;
 
     //Kalman correction step (single measurement: gyro Z-axis)
-    vehicle_state->v_ang = v_ang_pred + PAYLOAD_K1_ROLL * (p_in_rad_s - v_ang_pred);
+    vehicle_state->v_ang = v_ang_pred + PAYLOAD_K1_ROLL * (p_in_rad_s - v_ang_pred) + 0.046;
+	vehicle_state->v_ang = (float) ((int32_t) (vehicle_state->v_ang * 100)) / 100.0f;
     vehicle_state->a_ang = a_ang_pred + PAYLOAD_K2_ROLL * (p_in_rad_s - v_ang_pred);
 
 	return;

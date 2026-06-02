@@ -10,7 +10,8 @@
 #include "../lib/common/sensor.h"
 #include "../lib/common/log.h"
 
-#define __SENSOR_IO_IMU_DISABLE__
+// #define __SENSOR_IO_IMU_DISABLE__
+// #define __SENSOR_IO_ALT_DISABLE__
 
 static struct bmp388_config bmp_cfg;
 static struct bmp388_data bmp_dat;
