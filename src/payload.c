@@ -174,16 +174,6 @@ void payload_detect_launch(void)
 			memset(&recording_page, 0xFF, sizeof(recording_page));
 			pid_reset(&roll_pid);
 			payload_state = PAYLOAD_STATE_ASCEND;
-
-			if (servo_start(&servo_dev1))
-			{
-				LOG_ERR("Error starting servo device 1 (TIM1-CH1).");
-			}
-
-			if (servo_start(&servo_dev2))
-			{
-				LOG_ERR("Error starting servo device 2 (TIM1-CH2).");
-			}
 		}
 	}
 	return;
@@ -228,6 +218,17 @@ void payload_record_avionics(void)
 		{
 			LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.",
 			        (int) peak_altitude);
+			
+			if (servo_start(&servo_dev1))
+			{
+				LOG_ERR("Error starting servo device 1 (TIM1-CH1).");
+			}
+
+			if (servo_start(&servo_dev2))
+			{
+				LOG_ERR("Error starting servo device 2 (TIM1-CH2).");
+			}
+			
 			payload_state = PAYLOAD_STATE_DESCEND;
 		}
 	}
