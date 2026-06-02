@@ -167,6 +167,7 @@ static void payload_detect_launch(void)
 	int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M
 	                || (HAL_GPIO_ReadPin(PAYLOAD_BTN_GPIO_PORT, PAYLOAD_BTN_GPIO_PIN)
 	                    == GPIO_PIN_RESET));
+	if (launched) HAL_Delay(500);
 #else
 	int launched = (alt >= PAYLOAD_LAUNCH_ALT_THRESHOLD_M);
 #endif
@@ -213,12 +214,22 @@ static void payload_record_avionics(void)
 
 	if (payload_state == PAYLOAD_STATE_ASCEND)
 	{
+		#ifdef __PAYLOAD_TESTING__
+		if (button_pressed())
+		{
+			goto test_descent;
+		}
+		#endif
+
 		if (alt > peak_altitude)
 		{
 			peak_altitude = alt;
 		}
 		else if (alt < peak_altitude - PAYLOAD_APOGEE_MARGIN_M)
 		{
+		#ifdef __PAYLOAD_TESTING__
+			test_descent:
+		#endif
 			LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.",
 			        (int) peak_altitude);
 
