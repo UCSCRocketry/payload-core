@@ -94,7 +94,6 @@ int sensor_io_sample(struct payload_sensor_sample *s)
 	}
 #endif
 
-
 	s->pressure_v1 = press.val1;
 	s->pressure_v2 = press.val2;
 	s->accel_z_v1 = accel[2].val1;
