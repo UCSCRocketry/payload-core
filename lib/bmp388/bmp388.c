@@ -8,18 +8,11 @@ static HAL_StatusTypeDef bmp388_spi_mem_read(SPI_HandleTypeDef *hspi, uint16_t a
 {
 	HAL_StatusTypeDef ret;
 	uint8_t addr_mod = (addr & 0x7F) | (1U << 7U);
+	uint8_t dummy;
 	HAL_GPIO_WritePin(BMP388_CS_GPIO_PORT, BMP388_CS_GPIO_PIN, GPIO_PIN_RESET);
 	ret = HAL_SPI_Transmit(hspi, &addr_mod, 1, BMP388_SPI_TIMEOUT);
-	if (ret != HAL_OK)
-	{
-		return ret;
-	}
-	ret = HAL_SPI_Receive(hspi, pData, 1, BMP388_SPI_TIMEOUT);
-	if (ret != HAL_OK)
-	{
-		return ret;
-	}
-	ret = HAL_SPI_Receive(hspi, pData, Size, BMP388_SPI_TIMEOUT);
+	ret |= HAL_SPI_Receive(hspi, &dummy, 1, BMP388_SPI_TIMEOUT);
+	ret |= HAL_SPI_Receive(hspi, pData, Size, BMP388_SPI_TIMEOUT);
 	HAL_GPIO_WritePin(BMP388_CS_GPIO_PORT, BMP388_CS_GPIO_PIN, GPIO_PIN_SET);
 	return ret;
 }
@@ -31,11 +24,7 @@ static HAL_StatusTypeDef bmp388_spi_mem_write(SPI_HandleTypeDef *hspi, uint16_t 
 	uint8_t addr_mod = (addr & 0x7F);
 	HAL_GPIO_WritePin(BMP388_CS_GPIO_PORT, BMP388_CS_GPIO_PIN, GPIO_PIN_RESET);
 	ret = HAL_SPI_Transmit(hspi, &addr_mod, 1, BMP388_SPI_TIMEOUT);
-	if (ret != HAL_OK)
-	{
-		return ret;
-	}
-	ret = HAL_SPI_Transmit(hspi, &Data, Size, BMP388_SPI_TIMEOUT);
+	ret |= HAL_SPI_Transmit(hspi, &Data, Size, BMP388_SPI_TIMEOUT);
 	HAL_GPIO_WritePin(BMP388_CS_GPIO_PORT, BMP388_CS_GPIO_PIN, GPIO_PIN_SET);
 	return ret;
 }
