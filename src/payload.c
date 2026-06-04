@@ -310,14 +310,14 @@ static void payload_run(void)
 	payload_kalman(&avionics_state, &sensor_sample, baseline_pressure);
 
 	// Write Kalman outputs back into the sample for logging
-	sensor_sample.velocity_z_v1 = (int32_t) avionics_state.v;
-	sensor_sample.velocity_z_v2
+	sensor_sample.velocity_y_v1 = (int32_t) avionics_state.v;
+	sensor_sample.velocity_y_v2
 	        = (int32_t) ((avionics_state.v - (int32_t) avionics_state.v) * 1000000.0f);
-	sensor_sample.ang_a_z_v1 = (int32_t) avionics_state.a_ang;
-	sensor_sample.ang_a_z_v2
+	sensor_sample.ang_a_y_v1 = (int32_t) avionics_state.a_ang;
+	sensor_sample.ang_a_y_v2
 	        = (int32_t) ((avionics_state.a_ang - (int32_t) avionics_state.a_ang) * 1000000.0f);
-	sensor_sample.ang_v_z_v1 = (int32_t) avionics_state.v_ang;
-	sensor_sample.ang_v_z_v2
+	sensor_sample.ang_v_y_v1 = (int32_t) avionics_state.v_ang;
+	sensor_sample.ang_v_y_v2
 	        = (int32_t) ((avionics_state.v_ang - (int32_t) avionics_state.v_ang) * 1000000.0f);
 
 	if (payload_state == PAYLOAD_STATE_ASCEND || payload_state == PAYLOAD_STATE_DESCEND)

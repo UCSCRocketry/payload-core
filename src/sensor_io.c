@@ -96,10 +96,10 @@ int sensor_io_sample(struct payload_sensor_sample *s)
 
 	s->pressure_v1 = press.val1;
 	s->pressure_v2 = press.val2;
-	s->accel_z_v1 = accel[2].val1;
-	s->accel_z_v2 = accel[2].val2;
-	s->ang_v_z_v1 = gyro[2].val1;
-	s->ang_v_z_v2 = gyro[2].val2;
+	s->accel_y_v1 = accel[1].val1;
+	s->accel_y_v2 = accel[1].val2;
+	s->ang_v_y_v1 = gyro[1].val1;
+	s->ang_v_y_v2 = gyro[1].val2;
 
 	return 0;
 }

@@ -25,14 +25,14 @@ struct payload_sensor_sample
 	int32_t fin1_pos_v2; // Ch 2: fin 1 position frac
 	int32_t fin2_pos_v1; // Ch 3: fin 2 position int  (rad)
 	int32_t fin2_pos_v2; // Ch 3: fin 2 position frac
-	int32_t accel_z_v1; // Ch 4: accel Z int  (m/s²)
-	int32_t accel_z_v2; // Ch 4: accel Z frac
-	int32_t velocity_z_v1; // Ch 5: velocity Z int  (m/s)
-	int32_t velocity_z_v2; // Ch 5: velocity Z frac
-	int32_t ang_a_z_v1; // Ch 6: angular accel Z int  (rad/s²)
-	int32_t ang_a_z_v2; // Ch 6: angular accel Z frac
-	int32_t ang_v_z_v1; // Ch 7: angular velocity Z int  (rad/s)
-	int32_t ang_v_z_v2; // Ch 7: angular velocity Z frac
+	int32_t accel_y_v1; // Ch 4: accel Y int  (m/s²)
+	int32_t accel_y_v2; // Ch 4: accel Y frac
+	int32_t velocity_y_v1; // Ch 5: velocity Y int  (m/s)
+	int32_t velocity_y_v2; // Ch 5: velocity Y frac
+	int32_t ang_a_y_v1; // Ch 6: angular accel Y int  (rad/s²)
+	int32_t ang_a_y_v2; // Ch 6: angular accel Y frac
+	int32_t ang_v_y_v1; // Ch 7: angular velocity Y int  (rad/s)
+	int32_t ang_v_y_v2; // Ch 7: angular velocity Y frac
 } __attribute__((packed));
 
 /**

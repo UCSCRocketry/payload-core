@@ -19,20 +19,20 @@
 void payload_kalman(struct payload_avionics_state *vehicle_state,
                     struct payload_sensor_sample *input_samples, float baseline_pressure)
 {
-	struct sensor_value gyroz_val = { 0 };
-	struct sensor_value accelz_val = { 0 };
+	struct sensor_value gyroy_val = { 0 };
+	struct sensor_value accely_val = { 0 };
 	struct sensor_value press_val = { 0 };
 
-	gyroz_val.val1 = input_samples->ang_v_z_v1;
-	gyroz_val.val2 = input_samples->ang_v_z_v2;
-	accelz_val.val1 = input_samples->accel_z_v1;
-	accelz_val.val2 = input_samples->accel_z_v2;
+	gyroy_val.val1 = input_samples->ang_v_y_v1;
+	gyroy_val.val2 = input_samples->ang_v_y_v2;
+	accely_val.val1 = input_samples->accel_y_v1;
+	accely_val.val2 = input_samples->accel_y_v2;
 	press_val.val1 = input_samples->pressure_v1;
 	press_val.val2 = input_samples->pressure_v2;
 
 	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&press_val));
 	float baro_in_meters = PAYLOAD_FEET_TO_METERS_CONV * alt;
-	float acc_in_ms2 = sensor_value_to_float(&accelz_val);
+	float acc_in_ms2 = sensor_value_to_float(&accely_val);
 
 	// --- Vertical trajectory ---
 
@@ -50,7 +50,7 @@ void payload_kalman(struct payload_avionics_state *vehicle_state,
 
 	// --- Roll ---
 
-	float p_in_rad_s = sensor_value_to_float(&gyroz_val);
+	float p_in_rad_s = sensor_value_to_float(&gyroy_val);
 
 	float v_ang_pred = vehicle_state->v_ang + vehicle_state->a_ang * PAYLOAD_PHI_ROLL_11_S;
 	float a_ang_pred = vehicle_state->a_ang;
