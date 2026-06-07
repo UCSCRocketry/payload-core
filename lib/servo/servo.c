@@ -126,9 +126,12 @@ int servo_read(struct servo_device *dev, float *servo_pos)
 	{
 		return -1;
 	}
+	LOG_INF("\nADCVAL: %u", adcval);
 	// max val 3835
 	// min val 182
-	*servo_pos = 180.0 * (((float) adcval - 182.0) / (3835.0 - 182.0)) - 92.0;
+	*servo_pos = - ((dev->deg_max - dev->deg_min) * (((float) adcval - (float) dev->adc_min) / 
+				 ((float) dev->adc_max - (float) dev->adc_min)) + dev->deg_min);
+	
 
 	return 0;
 }

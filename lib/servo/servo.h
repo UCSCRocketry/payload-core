@@ -30,6 +30,12 @@ struct servo_device
 
 	// Degree offset
 	float deg_offset;
+
+	// ADC value corresponding to min PWM
+	uint32_t adc_min;
+
+	// ADC value corresponding to max PWM
+	uint32_t adc_max;
 };
 
 int servo_init(struct servo_device *dev);

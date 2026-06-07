@@ -86,6 +86,8 @@ int main(void)
 	servo_dev1.deg_min = -90.0;
 	servo_dev1.deg_max = 90.0;
 	servo_dev1.deg_offset = 0.0;
+	servo_dev1.adc_min = 182;
+	servo_dev1.adc_max = 3870;
 	if (servo_init(&servo_dev1))
 	{
 		LOG_ERR("Error initializing servo device 1 (TIM1-CH1).");
@@ -94,10 +96,15 @@ int main(void)
 	struct servo_device servo_dev2 = servo_dev1;
 	servo_dev2.adc_channel = ADC_CHANNEL_9;
 	servo_dev2.tim_channel = TIM_CHANNEL_2;
+	servo_dev2.adc_min = 182;
+	servo_dev2.adc_max = 3887;
 	if (servo_init(&servo_dev2))
 	{
 		LOG_ERR("Error initializing servo device 2 (TIM1-CH2).");
 	}
+
+	servo_set(&servo_dev1, 0.0);
+	servo_set(&servo_dev2, 0.0);
 
 	if (servo_start(&servo_dev1))
 	{
@@ -112,21 +119,21 @@ int main(void)
 	while (1)
 	{
 		float servo1_pos, servo2_pos;
-		HAL_Delay(500);
-		servo_set(&servo_dev1, 45.0);
-		servo_set(&servo_dev2, 45.0);
+		// HAL_Delay(500);
+		// servo_set(&servo_dev1, -90.0);
+		// servo_set(&servo_dev2, -90.0);
 		servo_read(&servo_dev1, &servo1_pos);
 		servo_read(&servo_dev2, &servo2_pos);
 		LOG_INF("Servo 1 pos: %f", servo1_pos);
 		LOG_INF("Servo 2 pos: %f", servo2_pos);
 
-		HAL_Delay(500);
-		servo_set(&servo_dev2, -45.0);
-		servo_set(&servo_dev1, -45.0);
-		servo_read(&servo_dev1, &servo1_pos);
-		servo_read(&servo_dev2, &servo2_pos);
-		LOG_INF("Servo 1 pos: %f", servo1_pos);
-		LOG_INF("Servo 2 pos: %f", servo2_pos);
+		// HAL_Delay(500);
+		// servo_set(&servo_dev2, -45.0);
+		// servo_set(&servo_dev1, -45.0);
+		// servo_read(&servo_dev1, &servo1_pos);
+		// servo_read(&servo_dev2, &servo2_pos);
+		// LOG_INF("Servo 1 pos: %f", servo1_pos);
+		// LOG_INF("Servo 2 pos: %f", servo2_pos);
 	}
 
 	// We should not get here
