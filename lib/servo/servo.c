@@ -128,7 +128,7 @@ int servo_read(struct servo_device *dev, float *servo_pos)
 	}
 	// max val 3835
 	// min val 182
-	*servo_pos = 180.0 * (((float) adcval - 182.0) / (3835.0 - 182.0));
+	*servo_pos = 180.0 * (((float) adcval - 182.0) / (3835.0 - 182.0)) - 92.0;
 
 	return 0;
 }
