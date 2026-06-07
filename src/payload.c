@@ -125,10 +125,7 @@ void payload_setup(void)
 {
 	handle_startup_button();
 
-	while (!button_pressed())
-	{
-		HAL_Delay(10);
-	}
+	HAL_Delay(500);
 	LOG_INF("Armed.");
 	led_state = LED_BLINK_SLOW;
 
