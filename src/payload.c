@@ -211,12 +211,13 @@ static void payload_record_avionics(void)
 
 	if (payload_state == PAYLOAD_STATE_ASCEND)
 	{
-		#ifdef __PAYLOAD_TESTING__
+
+#ifdef __PAYLOAD_TESTING__
 		if (button_pressed())
 		{
 			goto test_descent;
 		}
-		#endif
+#endif
 
 		if (alt > peak_altitude)
 		{
@@ -224,12 +225,15 @@ static void payload_record_avionics(void)
 		}
 		else if (alt < peak_altitude - PAYLOAD_APOGEE_MARGIN_M)
 		{
-		#ifdef __PAYLOAD_TESTING__
+			
+#ifdef __PAYLOAD_TESTING__
 			test_descent:
-		#endif
+#endif
 			LOG_INF("Apogee detected! Peak alt ~%d m. Transitioning to DESCEND.",
 			        (int) peak_altitude);
 
+			servo_set(&servo_dev1, 90.0);
+			servo_set(&servo_dev2, 90.0);
 			if (servo_start(&servo_dev1))
 			{
 				LOG_ERR("Error starting servo device 1 (TIM1-CH1).");
@@ -238,6 +242,10 @@ static void payload_record_avionics(void)
 			{
 				LOG_ERR("Error starting servo device 2 (TIM1-CH2).");
 			}
+
+			HAL_Delay(500);
+			servo_set(&servo_dev1, 0.0);
+			servo_set(&servo_dev2, 0.0);
 
 			payload_state = PAYLOAD_STATE_DESCEND;
 		}

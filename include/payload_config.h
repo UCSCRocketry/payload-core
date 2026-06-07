@@ -20,7 +20,7 @@
 #define PAYLOAD_BTN_GPIO_PIN  GPIO_PIN_0
 
 // Altitude at which launch is declared
-#define PAYLOAD_LAUNCH_ALT_THRESHOLD_M 100.0f
+#define PAYLOAD_LAUNCH_ALT_THRESHOLD_M 500.0f
 
 // Number of BMP388 readings averaged to establish the launch-site baseline
 #define PAYLOAD_BASELINE_SAMPLES 16
@@ -43,7 +43,7 @@
 #define PAYLOAD_APOGEE_MARGIN_M 50.0f
 
 // Altitude (m) at or below which the payload is considered near the ground
-#define PAYLOAD_LAND_ALT_THRESHOLD_M 200.0f
+#define PAYLOAD_LAND_ALT_THRESHOLD_M 300.0f
 
 // Duration (s) that altitude must stay below the land threshold to confirm landing
 #define PAYLOAD_LAND_HOLD_S 30
@@ -84,8 +84,8 @@
 
 // --- PID controller (roll stabilisation) ---
 #define PAYLOAD_PID_SETPOINT 0.0f // Target roll rate (rad/s)
-#define PAYLOAD_PID_KP       0.07f // Proportional gain
-#define PAYLOAD_PID_KI       0.016f // Integral gain
+#define PAYLOAD_PID_KP       -0.3f // Proportional gain
+#define PAYLOAD_PID_KI       0.0f // Integral gain
 #define PAYLOAD_PID_KD       0.0f // Derivative gain
 #define PAYLOAD_PID_P_MAX    1.0f
 #define PAYLOAD_PID_P_MIN    -1.0f
