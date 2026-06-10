@@ -215,6 +215,7 @@ static void payload_record_avionics(void)
 #ifdef __PAYLOAD_TESTING__
 		if (button_pressed())
 		{
+			HAL_Delay(500);
 			goto test_descent;
 		}
 #endif
@@ -253,8 +254,11 @@ static void payload_record_avionics(void)
 	else // PAYLOAD_STATE_DESCEND
 	{
 		land_hold_count = (alt <= PAYLOAD_LAND_ALT_THRESHOLD_M) ? (land_hold_count + 1) : 0;
-
+#ifdef __PAYLOAD_TESTING__
+		if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES || button_pressed())
+#else
 		if (land_hold_count >= PAYLOAD_LAND_HOLD_SAMPLES)
+#endif
 		{
 			LOG_INF("Landing detected!");
 
