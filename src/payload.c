@@ -178,7 +178,7 @@ static void payload_detect_launch(void)
 	led_state = LED_ON;
 
 	LOG_DBG("Recording: starting at page %lu / %lu", current_page_idx, hspif.PageCnt);
-	current_page_idx = 0;
+	current_page_idx = 1; // Page 0 is reserved for metadata written at recording end
 	page_sample_idx = 0;
 	memset(&recording_page, 0xFF, sizeof(recording_page));
 	pid_reset(&roll_pid);
@@ -296,14 +296,25 @@ static void payload_handle_controls(void)
  */
 static void payload_terminate_recording(void)
 {
-	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.",
-	        current_page_idx);
+	// pages_written = number of recording pages (pages 1..N); page 0 is metadata
+	uint32_t pages_written = current_page_idx - 1;
+	LOG_INF("Recording terminated. Wrote %lu pages. Entering low-power stop mode.", pages_written);
+
+	// Write metadata to page 0: magic (0xCAFEBABE) + pages_written
+	uint8_t meta_page[SPIF_PAGE_SIZE];
+	memset(meta_page, 0xFF, sizeof(meta_page));
+	uint32_t meta[2] = { 0xCAFEBABEUL, pages_written };
+	memcpy(meta_page, meta, sizeof(meta));
+	SPIF_WritePage(&hspif, 0, meta_page, sizeof(meta_page), 0);
+
 	led_state = LED_OFF;
 	HAL_GPIO_WritePin(GPIO_LED_GPIO_Port, GPIO_LED_Pin, GPIO_PIN_SET);
 	payload_state = PAYLOAD_STATE_DONE;
 
 	HAL_SuspendTick();
 	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+	// Restore SysTick after any spurious wakeup so HAL_GetTick() keeps counting
+	HAL_ResumeTick();
 }
 
 /**

@@ -3,9 +3,8 @@
  * @brief Functions to dump the flash to SD card and verify
  */
 
-// DATA.BIN:
-//      bytes 0-3   total page count in uint32_t
-//      bytes 4+    raw flash pages, each 256 bytes
+// DATA.BIN: raw recording pages only (no metadata page)
+// Flash layout: page 0 = metadata {magic=0xCAFEBABE, pages_written}; pages 1..N = samples
 
 #include "dump.h"
 #include "../lib/sdhc/sdhc.h"
@@ -13,6 +12,7 @@
 #include "../lib/common/log.h"
 #include "../lib/common/errno.h"
 #include "stm32f4xx_hal.h"
+#include <string.h>
 
 extern CRC_HandleTypeDef hcrc; // CRC Module
 extern SPI_HandleTypeDef hspi2; // SPI peripheral for SD Card
@@ -57,13 +57,35 @@ int dump_flash(SPIF_HandleTypeDef *spif)
 
 	// ******** Perform Dump Operations ********
 
-	uint32_t num_pages = spif->PageCnt;
 	uint8_t page_buf[SPIF_PAGE_SIZE];
 	uint32_t crc_wr = 0;
 	uint32_t crc_rd = 0;
 	int ret = 1;
 	FIL file;
 	UINT num_xferred;
+
+	// Read metadata from page 0: bytes 0-3 magic, bytes 4-7 pages_written
+	uint32_t start_page, num_pages;
+	if (!SPIF_ReadPage(spif, 0, page_buf, SPIF_PAGE_SIZE, 0))
+	{
+		LOG_ERR("Dump: failed to read metadata page");
+		goto unmount;
+	}
+	uint32_t meta_magic, meta_pages;
+	memcpy(&meta_magic, page_buf, 4);
+	memcpy(&meta_pages, page_buf + 4, 4);
+	if (meta_magic == 0xCAFEBABEUL)
+	{
+		start_page = 1;
+		num_pages = meta_pages;
+		LOG_INF("Dump: metadata OK, %lu recording pages", num_pages);
+	}
+	else
+	{
+		start_page = 0;
+		num_pages = spif->PageCnt;
+		LOG_WRN("Dump: no metadata found, dumping full flash (%lu pages)", num_pages);
+	}
 
 	// Open the file to write
 	if (f_open(&file, "DATA.BIN", FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
@@ -72,19 +94,10 @@ int dump_flash(SPIF_HandleTypeDef *spif)
 		goto unmount;
 	}
 
-	// // Write the header
-	// if (f_write(&file, &num_pages, sizeof(num_pages), &num_xferred) != FR_OK
-	//     || num_xferred != sizeof(num_pages))
-	// {
-	// 	LOG_ERR("Dump: header write failed");
-	// 	(void) f_close(&file);
-	// 	goto unmount;
-	// }
-
 	// Perform the data transfer
 	LOG_INF("Performing data transfer...DO NOT REMOVE CARD");
 	__HAL_CRC_DR_RESET(&hcrc);
-	for (uint32_t i = 0; i < num_pages; i++)
+	for (uint32_t i = start_page; i < start_page + num_pages; i++)
 	{
 		// Read from flash
 		if (!SPIF_ReadPage(spif, i, page_buf, SPIF_PAGE_SIZE, 0))
