@@ -69,6 +69,9 @@
 #define PAYLOAD_K1_ROLL 0.2655
 #define PAYLOAD_K2_ROLL 0.7224
 
+// LSM9DS1 Y-axis gyro zero-rate offset (rad/s) — subtract from raw measurement before Kalman
+#define PAYLOAD_GYRO_BIAS_RAD_S 0.046f
+
 // State transition matrix — vertical motion (ms then seconds)
 #define PAYLOAD_PHI_VERTICAL_12 (PAYLOAD_MAIN_POLL_PERIOD_MS)
 #define PAYLOAD_PHI_VERTICAL_13                                                                    \

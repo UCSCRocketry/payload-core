@@ -50,12 +50,13 @@ void payload_kalman(struct payload_avionics_state *vehicle_state,
 
 	// --- Roll ---
 
-	float p_in_rad_s = sensor_value_to_float(&gyroy_val);
+	// Subtract gyro zero-rate offset before feeding the measurement into the filter
+	float p_in_rad_s = sensor_value_to_float(&gyroy_val) - PAYLOAD_GYRO_BIAS_RAD_S;
 
 	float v_ang_pred = vehicle_state->v_ang + vehicle_state->a_ang * PAYLOAD_PHI_ROLL_11_S;
 	float a_ang_pred = vehicle_state->a_ang;
 
-	vehicle_state->v_ang = v_ang_pred + PAYLOAD_K1_ROLL * (p_in_rad_s - v_ang_pred) + 0.046;
+	vehicle_state->v_ang = v_ang_pred + PAYLOAD_K1_ROLL * (p_in_rad_s - v_ang_pred);
 	vehicle_state->v_ang = (float) ((int32_t) (vehicle_state->v_ang * 100)) / 100.0f;
 	vehicle_state->a_ang = a_ang_pred + PAYLOAD_K2_ROLL * (p_in_rad_s - v_ang_pred);
 }
