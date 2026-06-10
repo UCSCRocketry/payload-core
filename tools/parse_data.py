@@ -18,15 +18,15 @@ CSV_HEADER = [
     "rawPressure_kPa",
     "fin1Pos_rad",
     "fin2Pos_rad",
-    "accel_z_ms2",
-    "vel_z_ms",
-    "angA_z_rads2",
-    "angV_z_rads",
+    "accel_ms2",
+    "vel_ms",
+    "angA_rads2",
+    "angV_rads",
 ]
 
 
 def sv_to_float(v1: int, v2: int) -> float:
-    return v1 + v2 / 1_000_000
+    return round(v1 + v2 / 1_000_000, 6)
 
 
 def parse_sample(data: bytes) -> dict:
@@ -41,10 +41,10 @@ def parse_sample(data: bytes) -> dict:
         "rawPressure_kPa": sv_to_float(p1, p2),
         "fin1Pos_rad": sv_to_float(ax1, ax2),
         "fin2Pos_rad": sv_to_float(ay1, ay2),
-        "accel_z_ms2": sv_to_float(az1, az2),
-        "vel_z_ms": sv_to_float(gx1, gx2),
-        "angA_z_rads2": sv_to_float(gy1, gy2),
-        "angV_z_rads": sv_to_float(gz1, gz2),
+        "accel_ms2": sv_to_float(az1, az2),
+        "vel_ms": sv_to_float(gx1, gx2),
+        "angA_rads2": sv_to_float(gy1, gy2),
+        "angV_rads": sv_to_float(gz1, gz2),
     }
 
 
