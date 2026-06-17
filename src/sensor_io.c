@@ -68,7 +68,7 @@ int sensor_io_sample(struct payload_sensor_sample *s)
 	struct sensor_value gyro[3] = { 0 };
 	struct sensor_value press = { 0 };
 
-	s->timestamp_ms = (uint64_t) HAL_GetTick();
+	s->timestamp_ms = HAL_GetTick();
 
 #ifndef __SENSOR_IO_ALT_DISABLE__
 	if (bmp388_sample_fetch(&bmp_dev) || bmp388_channel_get(&bmp_dev, SENSOR_CHAN_PRESS, &press))

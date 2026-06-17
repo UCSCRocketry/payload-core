@@ -8,13 +8,14 @@ import csv
 import sys
 from pathlib import Path
 
-SAMPLE_FMT = "<Q14i" # 1× uint64 + 14× int32 = 64 bytes
+SAMPLE_FMT = "<Ii14i" # 1× uint32 ts + 1× int32 altitude + 14× int32 = 64 bytes
 SAMPLE_SIZE = struct.calcsize(SAMPLE_FMT) # 64
 SAMPLES_PER_PAGE = 4
 PAGE_SIZE = SAMPLE_SIZE * SAMPLES_PER_PAGE # 256
 
 CSV_HEADER = [
     "timestamp_ms",
+    "altitude_m",
     "rawPressure_kPa",
     "fin1Pos_rad",
     "fin2Pos_rad",
@@ -32,12 +33,14 @@ def sv_to_float(v1: int, v2: int) -> float:
 def parse_sample(data: bytes) -> dict:
     fields = struct.unpack(SAMPLE_FMT, data)
     ts = fields[0]
+    alt = fields[1]
     (p1, p2,
      ax1, ax2, ay1, ay2, az1, az2,
-     gx1, gx2, gy1, gy2, gz1, gz2) = fields[1:]
+     gx1, gx2, gy1, gy2, gz1, gz2) = fields[2:]
 
     return {
         "timestamp_ms": ts,
+        "altitude_m": alt,
         "rawPressure_kPa": sv_to_float(p1, p2),
         "fin1Pos_rad": sv_to_float(ax1, ax2),
         "fin2Pos_rad": sv_to_float(ay1, ay2),

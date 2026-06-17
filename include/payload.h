@@ -18,7 +18,8 @@
  */
 struct payload_sensor_sample
 {
-	uint64_t timestamp_ms; // Ch 0: HAL_GetTick() in ms
+	uint32_t timestamp_ms; // Ch 0: HAL_GetTick() in ms
+	int32_t altitude_m; // Ch 0b: calculated altitude (m, relative to baseline)
 	int32_t pressure_v1; // Ch 1: pressure int  (kPa)
 	int32_t pressure_v2; // Ch 1: pressure frac
 	int32_t fin1_pos_v1; // Ch 2: fin 1 position int  (rad)

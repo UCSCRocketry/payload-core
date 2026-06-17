@@ -191,6 +191,13 @@ static void payload_detect_launch(void)
 static void payload_record_avionics(void)
 {
 	struct payload_sensor_sample s = sensor_sample;
+
+	// Calculate altitude (m, relative to baseline) and store it in the sample
+	struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
+	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur))
+	            * PAYLOAD_FEET_TO_METERS_CONV;
+	s.altitude_m = (int32_t) alt;
+
 	recording_page.samples[page_sample_idx++] = s;
 
 	if (page_sample_idx == PAYLOAD_SAMPLES_PER_PAGE)
@@ -204,10 +211,6 @@ static void payload_record_avionics(void)
 		page_sample_idx = 0;
 		memset(&recording_page, 0xFF, sizeof(recording_page));
 	}
-
-	struct sensor_value cur = { .val1 = s.pressure_v1, .val2 = s.pressure_v2 };
-	float alt = bmp388_calc_altitude(baseline_pressure, sensor_value_to_float(&cur))
-	            * PAYLOAD_FEET_TO_METERS_CONV;
 
 	if (payload_state == PAYLOAD_STATE_ASCEND)
 	{
